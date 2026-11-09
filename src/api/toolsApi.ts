@@ -5,6 +5,7 @@ export interface ToolFilters {
   status?: string;
   category?: string;
   search?: string;
+  worker_id?: number | string;
 }
 
 export interface ToolsResponse {
@@ -29,6 +30,8 @@ export interface CreateToolPayload {
   purchase_cost?: number;
   current_condition?: ToolCondition;
   storage_location?: string;
+  notes?: string;
+  status?: string;
 }
 
 export interface AssignToolPayload {

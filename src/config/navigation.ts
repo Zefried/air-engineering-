@@ -8,12 +8,18 @@ import {
   FileText,
   PlusSquare,
   FolderTree,
+  CalendarCheck,
+  CalendarDays,
+  BellRing,
 } from "lucide-react";
 import type { Role } from "../Context/AuthContextValue";
 
 // Lazy-load feature pages for optimal code splitting
 const Projects = lazy(() => import("../Pages/Projects/Projects"));
 const AddProject = lazy(() => import("../Pages/Projects/AddProject"));
+const Activities = lazy(() => import("../Pages/Activities/ActivitiesPage"));
+const Attendance = lazy(() => import("../Pages/Attendance/AttendancePage"));
+const PaymentReminders = lazy(() => import("../Pages/PaymentReminders/PaymentRemindersPage"));
 const Tools = lazy(() => import("../Pages/Tools/Tools"));
 const AddTool = lazy(() => import("../Pages/Tools/AddTool"));
 const Materials = lazy(() => import("../Pages/Materials/Materials"));
@@ -60,7 +66,7 @@ export const navigationConfig: NavigationItem[] = [
   {
     name: "Projects",
     icon: Briefcase,
-    allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
+    allowedRoles: ["admin", "manager", "subadmin"],
     showInSidebar: true,
     children: [
       {
@@ -68,7 +74,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Briefcase,
         path: "/dashboard/projects",
         element: React.createElement(Projects),
-        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
       {
@@ -82,9 +88,33 @@ export const navigationConfig: NavigationItem[] = [
     ],
   },
   {
+    name: "Payment Reminders",
+    icon: BellRing,
+    path: "/dashboard/payment-reminders",
+    element: React.createElement(PaymentReminders),
+    allowedRoles: ["admin"],
+    showInSidebar: true,
+  },
+  {
+    name: "Daily Activities",
+    icon: CalendarCheck,
+    path: "/dashboard/activities",
+    element: React.createElement(Activities),
+    allowedRoles: ["admin", "manager", "subadmin"],
+    showInSidebar: true,
+  },
+  {
+    name: "Attendance & Salary",
+    icon: CalendarDays,
+    path: "/dashboard/attendance",
+    element: React.createElement(Attendance),
+    allowedRoles: ["admin", "manager", "subadmin"],
+    showInSidebar: true,
+  },
+  {
     name: "Products & Stock",
     icon: Package,
-    allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
+    allowedRoles: ["admin", "manager", "subadmin"],
     showInSidebar: true,
     children: [
       {
@@ -92,7 +122,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Package,
         path: "/dashboard/products",
         element: React.createElement(Products),
-        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
       {
@@ -116,7 +146,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Package,
         path: "/dashboard/materials",
         element: React.createElement(Materials),
-        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: false, // Accessible directly, but streamlined under Products in sidebar
       },
       {
@@ -132,7 +162,7 @@ export const navigationConfig: NavigationItem[] = [
   {
     name: "Tools",
     icon: Wrench,
-    allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
+    allowedRoles: ["admin", "manager", "subadmin"],
     showInSidebar: true,
     children: [
       {
@@ -140,7 +170,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Wrench,
         path: "/dashboard/tools",
         element: React.createElement(Tools),
-        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
       {

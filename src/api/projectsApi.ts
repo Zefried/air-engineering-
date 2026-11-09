@@ -61,12 +61,12 @@ export interface ProjectPayload {
 }
 
 export const projectsApi = {
-  getProjects: async (params?: { search?: string; status?: string }): Promise<ProjectListResponse> => {
+  getProjects: async (params?: { search?: string; status?: string; worker_id?: number | string }): Promise<ProjectListResponse> => {
     const res = await api.get('/projects', { params });
     return res.data;
   },
 
-  getAll: async (params?: { search?: string; status?: string }): Promise<ProjectListResponse> => {
+  getAll: async (params?: { search?: string; status?: string; worker_id?: number | string }): Promise<ProjectListResponse> => {
     const res = await api.get('/projects', { params });
     return res.data;
   },

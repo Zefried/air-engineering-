@@ -1,8 +1,16 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Wrench, Calendar, MapPin, CheckCircle, Clock } from 'lucide-react';
+import { AuthContext } from '../../Context/AuthContextValue';
 import './Styles/Technician.css';
 
 export const TechnicianDashboard: React.FC = () => {
+  const auth = useContext(AuthContext);
+  const isWorker = auth?.user?.role === 'worker';
+  const portalTitle = isWorker ? "Field Worker Portal" : "Technician Field Portal";
+  const portalSubtitle = isWorker 
+    ? "Your active job-site projects, equipment custody, and work schedule" 
+    : "Your assigned jobs, tools, and scheduled service visits";
+
   const myAssignedTools = [
     { id: "TL-014", name: "Impact Drill", condition: "Good", category: "Power Tools" },
     { id: "TL-031", name: "Digital Manifold Gauge", condition: "New", category: "Measuring" },
@@ -18,8 +26,8 @@ export const TechnicianDashboard: React.FC = () => {
       {/* HEADER */}
       <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Technician Field Portal</h2>
-          <p className="text-gray-500">Your assigned jobs, tools, and scheduled service visits</p>
+          <h2 className="text-2xl font-bold">{portalTitle}</h2>
+          <p className="text-gray-500">{portalSubtitle}</p>
         </div>
         <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 shadow-sm">
           <Clock size={16} /> Log Service Entry

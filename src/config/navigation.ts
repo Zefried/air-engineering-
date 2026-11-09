@@ -54,13 +54,13 @@ export const navigationConfig: NavigationItem[] = [
     name: "Dashboard",
     icon: Home,
     path: "/dashboard",
-    allowedRoles: ["admin", "subadmin", "technician"],
+    allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
     showInSidebar: true,
   },
   {
     name: "Projects",
     icon: Briefcase,
-    allowedRoles: ["admin", "subadmin", "technician"],
+    allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
     showInSidebar: true,
     children: [
       {
@@ -68,7 +68,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Briefcase,
         path: "/dashboard/projects",
         element: React.createElement(Projects),
-        allowedRoles: ["admin", "subadmin", "technician"],
+        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
         showInSidebar: true,
       },
       {
@@ -76,7 +76,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: PlusSquare,
         path: "/dashboard/add-project",
         element: React.createElement(AddProject),
-        allowedRoles: ["admin", "subadmin"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
     ],
@@ -84,7 +84,7 @@ export const navigationConfig: NavigationItem[] = [
   {
     name: "Products & Stock",
     icon: Package,
-    allowedRoles: ["admin", "subadmin", "technician"],
+    allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
     showInSidebar: true,
     children: [
       {
@@ -92,7 +92,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Package,
         path: "/dashboard/products",
         element: React.createElement(Products),
-        allowedRoles: ["admin", "subadmin", "technician"],
+        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
         showInSidebar: true,
       },
       {
@@ -100,7 +100,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: PlusSquare,
         path: "/dashboard/add-product",
         element: React.createElement(AddProduct),
-        allowedRoles: ["admin", "subadmin"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
       {
@@ -108,7 +108,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: FolderTree,
         path: "/dashboard/categories",
         element: React.createElement(Categories),
-        allowedRoles: ["admin", "subadmin"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
       {
@@ -116,7 +116,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Package,
         path: "/dashboard/materials",
         element: React.createElement(Materials),
-        allowedRoles: ["admin", "subadmin", "technician"],
+        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
         showInSidebar: false, // Accessible directly, but streamlined under Products in sidebar
       },
       {
@@ -124,7 +124,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: PlusSquare,
         path: "/dashboard/add-material",
         element: React.createElement(AddMaterial),
-        allowedRoles: ["admin", "subadmin"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: false,
       },
     ],
@@ -132,7 +132,7 @@ export const navigationConfig: NavigationItem[] = [
   {
     name: "Tools",
     icon: Wrench,
-    allowedRoles: ["admin", "subadmin", "technician"],
+    allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
     showInSidebar: true,
     children: [
       {
@@ -140,7 +140,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Wrench,
         path: "/dashboard/tools",
         element: React.createElement(Tools),
-        allowedRoles: ["admin", "subadmin", "technician"],
+        allowedRoles: ["admin", "manager", "subadmin", "technician", "worker"],
         showInSidebar: true,
       },
       {
@@ -148,7 +148,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: PlusSquare,
         path: "/dashboard/add-tool",
         element: React.createElement(AddTool),
-        allowedRoles: ["admin", "subadmin"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
     ],
@@ -156,7 +156,7 @@ export const navigationConfig: NavigationItem[] = [
   {
     name: "Team",
     icon: Users,
-    allowedRoles: ["admin", "subadmin"],
+    allowedRoles: ["admin", "manager", "subadmin"],
     showInSidebar: true,
     children: [
       {
@@ -164,7 +164,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: Users,
         path: "/dashboard/employees",
         element: React.createElement(Team),
-        allowedRoles: ["admin", "subadmin"],
+        allowedRoles: ["admin", "manager", "subadmin"],
         showInSidebar: true,
       },
       {
@@ -172,7 +172,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: PlusSquare,
         path: "/dashboard/add-employee",
         element: React.createElement(AddEmployee),
-        allowedRoles: ["admin"],
+        allowedRoles: ["admin", "manager"],
         showInSidebar: true,
       },
     ],
@@ -180,7 +180,7 @@ export const navigationConfig: NavigationItem[] = [
   {
     name: "Contracts",
     icon: FileText,
-    allowedRoles: ["admin"],
+    allowedRoles: ["admin", "manager"],
     showInSidebar: true,
     children: [
       {
@@ -188,7 +188,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: FileText,
         path: "/dashboard/contracts",
         element: React.createElement(Contracts),
-        allowedRoles: ["admin"],
+        allowedRoles: ["admin", "manager"],
         showInSidebar: true,
       },
       {
@@ -196,7 +196,7 @@ export const navigationConfig: NavigationItem[] = [
         icon: PlusSquare,
         path: "/dashboard/add-contract",
         element: React.createElement(AddContract),
-        allowedRoles: ["admin"],
+        allowedRoles: ["admin", "manager"],
         showInSidebar: true,
       },
     ],

@@ -1,6 +1,6 @@
 import { createContext } from "react";
 
-export type Role = "admin" | "subadmin" | "technician" | "department" | (string & {});
+export type Role = "admin" | "manager" | "subadmin" | "technician" | "worker" | "department" | (string & {});
 
 export type User = {
   id: number;

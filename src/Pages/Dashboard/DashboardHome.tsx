@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { AuthContext } from "../../Context/AuthContextValue";
 
 const AdminDashboard = lazy(() => import("./AdminDashboard"));
+const ManagerDashboard = lazy(() => import("./ManagerDashboard"));
 const SubAdminDashboard = lazy(() => import("./SubAdminDashboard"));
 const TechnicianDashboard = lazy(() => import("./TechnicianDashboard"));
 
@@ -20,9 +21,10 @@ export const DashboardHome = () => {
   return (
     <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Dashboard...</div>}>
       {role === "admin" && <AdminDashboard />}
+      {role === "manager" && <ManagerDashboard />}
       {role === "subadmin" && <SubAdminDashboard />}
-      {role === "technician" && <TechnicianDashboard />}
-      {!["admin", "subadmin", "technician"].includes(role) && (
+      {(role === "technician" || role === "worker") && <TechnicianDashboard />}
+      {!["admin", "manager", "subadmin", "technician", "worker"].includes(role) && (
         <Navigate to="/unauthorized" replace />
       )}
     </Suspense>

@@ -24,7 +24,7 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
   onAssign,
 }) => {
   const [selectedWorkerId, setSelectedWorkerId] = useState(WORKERS_LIST[0].id);
-  const [projectName, setProjectName] = useState(PROJECTS_LIST[0]);
+  const [projectName, setProjectName] = useState(PROJECTS_LIST[0].full);
   const [assignedCondition, setAssignedCondition] = useState<ToolCondition>(tool.currentCondition || "Good");
   const [durationPreset, setDurationPreset] = useState("1 Day");
   const [customReturnDate, setCustomReturnDate] = useState(() => {
@@ -125,8 +125,8 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
               required
             >
               {PROJECTS_LIST.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+                <option key={p.full} value={p.full}>
+                  {p.full}
                 </option>
               ))}
             </select>

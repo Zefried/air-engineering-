@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Wrench,
   Package,
+  Users,
+  CheckCircle2,
   AlertTriangle,
   Search,
   Plus,
   History,
+  MoreHorizontal,
+  User,
+  MapPin,
   Link2,
-  CheckCircle2,
-  Clock,
-  Briefcase
+  CornerDownLeft
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './Styles/Tools.css';
@@ -35,58 +37,66 @@ export const Tools: React.FC = () => {
   const [assigningTool, setAssigningTool] = useState<ToolItem | null>(null);
   const [returningTool, setReturningTool] = useState<ToolItem | null>(null);
   const [journeyTool, setJourneyTool] = useState<ToolItem | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // Status badge styling helper
+  // Close menus on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveMenuId(null);
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, []);
+
+  // Status badge styling matching mockup
   const renderStatusBadge = (status: ToolStatus) => {
     switch (status) {
       case "Available":
         return (
-          <span className="tool-pill-badge green">
-            <span className="dot" /> Available (In Crib)
+          <span className="mockup-status-pill available">
+            <span className="dot" /> Available
           </span>
         );
-      case "In Use":
+      case "In Field":
         return (
-          <span className="tool-pill-badge blue">
-            <span className="dot" /> In Field (Assigned)
+          <span className="mockup-status-pill in-field">
+            <span className="dot" /> In Field
           </span>
         );
-      case "Under Repair":
+      case "Needs Repair":
         return (
-          <span className="tool-pill-badge amber">
-            <span className="dot" /> Under Repair
+          <span className="mockup-status-pill needs-repair">
+            <span className="dot" /> Needs Repair
           </span>
         );
       case "Retired":
         return (
-          <span className="tool-pill-badge slate">
-            <span className="dot" /> Retired / Scrapped
+          <span className="mockup-status-pill retired">
+            <span className="dot" /> Retired
           </span>
         );
       default:
         return (
-          <span className="tool-pill-badge rose">
-            <span className="dot" /> Lost / Missing
+          <span className="mockup-status-pill lost">
+            <span className="dot" /> Lost
           </span>
         );
     }
   };
 
-  // Condition badge helper
+  // Condition badge helper matching mockup
   const renderConditionBadge = (condition: ToolCondition) => {
     switch (condition) {
       case "Brand New":
-        return <span className="condition-tag emerald">Brand New</span>;
       case "Good":
-        return <span className="condition-tag green">Good</span>;
+        return <span className="mockup-condition-badge good">Good</span>;
+      case "Fair":
       case "Rough":
-        return <span className="condition-tag amber">Rough / Fair</span>;
+        return <span className="mockup-condition-badge fair">Fair</span>;
       case "Damaged":
-        return <span className="condition-tag rose">Damaged</span>;
+        return <span className="mockup-condition-badge damaged">Damaged</span>;
       case "Scrapped":
-        return <span className="condition-tag dark">Scrapped</span>;
+        return <span className="mockup-condition-badge scrapped">Scrapped</span>;
       default:
-        return <span className="condition-tag slate">{condition}</span>;
+        return <span className="mockup-condition-badge good">{condition}</span>;
     }
   };
 
@@ -103,6 +113,13 @@ export const Tools: React.FC = () => {
     }
   ) => {
     const nowStr = new Date().toISOString().replace("T", " ").substring(0, 16);
+    const shortProject = payload.projectName.includes("VRF")
+      ? "VRF Installation"
+      : payload.projectName.includes("Commissioning")
+      ? "Commissioning"
+      : payload.projectName.includes("Chiller")
+      ? "Chiller Overhaul"
+      : "Site Work";
 
     setTools((prev) =>
       prev.map((t) => {
@@ -123,12 +140,13 @@ export const Tools: React.FC = () => {
 
         return {
           ...t,
-          status: "In Use" as ToolStatus,
+          status: "In Field" as ToolStatus,
           currentCondition: payload.assignedCondition,
           assignedTo: {
             workerId: payload.workerId,
             workerName: payload.workerName,
             projectName: payload.projectName,
+            projectShortName: shortProject,
             assignedDate: nowStr,
             expectedReturnDate: payload.expectedReturnDate,
             isOverdue: false,
@@ -160,7 +178,7 @@ export const Tools: React.FC = () => {
           (payload.returnCondition === "Damaged" || payload.returnCondition === "Scrapped");
 
         let nextStatus: ToolStatus = "Available";
-        if (payload.returnCondition === "Damaged") nextStatus = "Under Repair";
+        if (payload.returnCondition === "Damaged") nextStatus = "Needs Repair";
         if (payload.returnCondition === "Scrapped") nextStatus = "Retired";
         if (payload.returnCondition === "Lost") nextStatus = "Lost";
 
@@ -197,12 +215,11 @@ export const Tools: React.FC = () => {
     );
   };
 
-  // KPIs
+  // KPIs matching mockup
   const totalTools = tools.length;
-  const inUseCount = tools.filter((t) => t.status === "In Use").length;
+  const inFieldCount = tools.filter((t) => t.status === "In Field").length;
   const availableCount = tools.filter((t) => t.status === "Available").length;
-  const damagedCount = tools.filter((t) => t.currentCondition === "Damaged" || t.status === "Under Repair").length;
-  const overdueCount = tools.filter((t) => t.assignedTo?.isOverdue).length;
+  const needsRepairCount = tools.filter((t) => t.status === "Needs Repair" || t.currentCondition === "Damaged").length;
 
   // Filtered List
   const filteredTools = useMemo(() => {
@@ -213,11 +230,9 @@ export const Tools: React.FC = () => {
       }
 
       // Tab filter
-      if (activeTab === "In Use" && tool.status !== "In Use") return false;
+      if (activeTab === "In Use" && tool.status !== "In Field") return false;
       if (activeTab === "Available" && tool.status !== "Available") return false;
-      if (activeTab === "Under Repair" && tool.status !== "Under Repair") return false;
-      if (activeTab === "Overdue Alert" && !tool.assignedTo?.isOverdue) return false;
-      if (activeTab === "Retired / Scrapped" && tool.status !== "Retired") return false;
+      if (activeTab === "Needs Repair" && tool.status !== "Needs Repair" && tool.currentCondition !== "Damaged") return false;
 
       // Search filter
       if (search.trim()) {
@@ -226,8 +241,8 @@ export const Tools: React.FC = () => {
         const matchesCode = tool.toolCode.toLowerCase().includes(q);
         const matchesSerial = tool.serialNo.toLowerCase().includes(q);
         const matchesWorker = tool.assignedTo?.workerName.toLowerCase().includes(q);
-        const matchesBrand = tool.brand.toLowerCase().includes(q);
-        if (!matchesName && !matchesCode && !matchesSerial && !matchesWorker && !matchesBrand) {
+        const matchesCategory = tool.category.toLowerCase().includes(q);
+        if (!matchesName && !matchesCode && !matchesSerial && !matchesWorker && !matchesCategory) {
           return false;
         }
       }
@@ -244,96 +259,97 @@ export const Tools: React.FC = () => {
   }, [filteredTools, currentPage, perPage]);
 
   return (
-    <div className="tools-management-page">
+    <div className="tools-mockup-page">
       {/* TOP BREADCRUMB */}
-      <div className="tools-breadcrumb">Equipment & Assets</div>
+      <div className="tools-mockup-breadcrumb">Equipment & Assets</div>
 
       {/* HEADER */}
-      <div className="tools-header">
-        <div>
+      <div className="tools-mockup-header">
+        <div className="header-text-group">
           <h1>HVAC Tools & Equipment Fleet</h1>
-          <p>
-            Track tool chain-of-custody, manage field worker checkouts, monitor damage degradation, and view
-            complete tool lifecycles.
-          </p>
+          <p>Track chain-of-custody, field checkouts, damage, and tool lifecycle.</p>
         </div>
-        <Link to="/dashboard/add-tool" className="btn-add-tool-dark">
+        <Link to="/dashboard/add-tool" className="btn-add-equipment-black">
           <Plus size={16} /> Add Equipment
         </Link>
       </div>
 
       {/* 4 TOP KPI CARDS */}
-      <div className="tool-stats-grid">
-        <div className="tool-stat-card">
-          <div className="stat-icon-box gray">
+      <div className="mockup-stats-grid">
+        <div className="mockup-stat-card">
+          <div className="stat-icon-wrapper">
             <Package size={22} />
           </div>
-          <div>
-            <p className="stat-label">Total Tools</p>
-            <h2 className="stat-count">{totalTools}</h2>
+          <div className="stat-details">
+            <p className="stat-title">Total Tools</p>
+            <h2 className="stat-number">{totalTools}</h2>
           </div>
         </div>
 
-        <div className="tool-stat-card">
-          <div className="stat-icon-box blue">
-            <Wrench size={22} />
+        <div className="mockup-stat-card">
+          <div className="stat-icon-wrapper">
+            <Users size={22} />
           </div>
-          <div>
-            <p className="stat-label">In Field (Assigned)</p>
-            <h2 className="stat-count">{inUseCount}</h2>
+          <div className="stat-details">
+            <p className="stat-title">In Field (Assigned)</p>
+            <h2 className="stat-number">{inFieldCount}</h2>
           </div>
         </div>
 
-        <div className="tool-stat-card">
-          <div className="stat-icon-box green">
+        <div className="mockup-stat-card">
+          <div className="stat-icon-wrapper">
             <CheckCircle2 size={22} />
           </div>
-          <div>
-            <p className="stat-label">Available in Crib</p>
-            <h2 className="stat-count">{availableCount}</h2>
+          <div className="stat-details">
+            <p className="stat-title">Available (In Crib)</p>
+            <h2 className="stat-number">{availableCount}</h2>
           </div>
         </div>
 
-        <div className="tool-stat-card">
-          <div className="stat-icon-box amber">
+        <div className="mockup-stat-card">
+          <div className="stat-icon-wrapper">
             <AlertTriangle size={22} />
           </div>
-          <div>
-            <p className="stat-label">Needs Repair / Damaged</p>
-            <h2 className="stat-count">{damagedCount}</h2>
+          <div className="stat-details">
+            <p className="stat-title">Needs Repair / Damaged</p>
+            <h2 className="stat-number">{needsRepairCount}</h2>
           </div>
         </div>
       </div>
 
       {/* TOOLBAR */}
-      <div className="tools-toolbar">
-        {/* Left Tabs */}
-        <div className="toolbar-left-pills">
+      <div className="mockup-toolbar">
+        {/* Left Tabs with Badges */}
+        <div className="mockup-toolbar-tabs">
           {[
             { label: "All Tools", count: totalTools },
-            { label: "In Use", count: inUseCount },
+            { label: "In Use", count: inFieldCount },
             { label: "Available", count: availableCount },
-            { label: "Under Repair", count: damagedCount },
-            { label: "Overdue Alert", count: overdueCount },
-            { label: "Retired / Scrapped", count: tools.filter((t) => t.status === "Retired").length },
-          ].map((tab) => (
-            <button
-              key={tab.label}
-              className={`filter-pill-btn ${activeTab === tab.label ? "active" : ""}`}
-              onClick={() => {
-                setActiveTab(tab.label);
-                setCurrentPage(1);
-              }}
-            >
-              {tab.label} {tab.count > 0 && <span className="count-pill">{tab.count}</span>}
-            </button>
-          ))}
+            { label: "Needs Repair", count: needsRepairCount },
+          ].map((tab) => {
+            const isActive = activeTab === tab.label;
+            return (
+              <button
+                key={tab.label}
+                className={`mockup-pill-tab ${isActive ? "active" : ""}`}
+                onClick={() => {
+                  setActiveTab(tab.label);
+                  setCurrentPage(1);
+                }}
+              >
+                <span>{tab.label}</span>
+                <span className={`tab-badge ${isActive ? "active" : ""}`}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Right Search & Filter */}
-        <div className="toolbar-right-controls">
+        <div className="mockup-toolbar-controls">
           <select
-            className="category-pill-select"
+            className="mockup-category-select"
             value={selectedCategory}
             onChange={(e) => {
               setSelectedCategory(e.target.value);
@@ -348,11 +364,11 @@ export const Tools: React.FC = () => {
             ))}
           </select>
 
-          <div className="search-pill-box">
+          <div className="mockup-search-box">
             <Search size={16} className="search-icon" />
             <input
               type="text"
-              placeholder="Search by name, tag, serial, worker..."
+              placeholder="Search tools by name, tag or serial..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -364,40 +380,58 @@ export const Tools: React.FC = () => {
       </div>
 
       {/* TABLE CARD */}
-      <div className="tools-table-container">
-        <div className="responsive-table-wrapper">
-          <table className="custom-tools-table">
+      <div className="mockup-table-card">
+        <div className="mockup-table-wrapper">
+          <table className="mockup-table">
             <thead>
               <tr>
-                <th>Tool Tag & Details</th>
+                <th>Tool / Equipment</th>
                 <th>Category</th>
                 <th>Condition</th>
-                <th>Current Custody / Assignment</th>
+                <th>Assignment / Location</th>
                 <th>Status</th>
-                <th className="text-right">Actions</th>
+                <th className="text-right"></th>
               </tr>
             </thead>
             <tbody>
               {paginatedTools.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="empty-state py-12 text-center text-slate-500">
-                    <Wrench size={36} className="mx-auto text-slate-300 mb-2" />
-                    <h4>No tools found</h4>
-                    <p className="text-xs">Try adjusting your search query or filter pills.</p>
+                    <Package size={36} className="mx-auto text-slate-300 mb-2" />
+                    <h4>No equipment found</h4>
+                    <p className="text-xs">Try adjusting your search criteria or active tab.</p>
                   </td>
                 </tr>
               ) : (
                 paginatedTools.map((tool) => {
                   return (
-                    <tr key={tool.id} className="tool-row">
-                      {/* TOOL DETAILS */}
+                    <tr key={tool.id} className="mockup-row">
+                      {/* TOOL / EQUIPMENT (THUMBNAIL + NAME + SUBTEXT) */}
                       <td>
-                        <div className="tool-details-cell">
-                          <span className="tool-tag-pill">{tool.toolCode}</span>
+                        <div className="tool-main-cell">
+                          <div className="tool-thumb-box">
+                            {tool.imageUrl ? (
+                              <img
+                                src={tool.imageUrl}
+                                alt={tool.name}
+                                className="tool-thumb-img"
+                                onError={(e) => {
+                                  // Fallback gracefully to icon if image fails
+                                  e.currentTarget.style.display = "none";
+                                  const parent = e.currentTarget.parentElement;
+                                  if (parent) {
+                                    parent.innerHTML = '<span class="fallback-icon">🔧</span>';
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span className="fallback-icon">🔧</span>
+                            )}
+                          </div>
                           <div>
-                            <div className="tool-name-primary">{tool.name}</div>
-                            <div className="tool-sub-specs">
-                              {tool.brand} · {tool.modelNo} · S/N: <span className="font-mono">{tool.serialNo}</span>
+                            <div className="tool-title-bold">{tool.name}</div>
+                            <div className="tool-serial-sub">
+                              {tool.toolCode} &nbsp;•&nbsp; S/N: {tool.serialNo}
                             </div>
                           </div>
                         </div>
@@ -405,33 +439,29 @@ export const Tools: React.FC = () => {
 
                       {/* CATEGORY */}
                       <td>
-                        <span className="tool-cat-text">{tool.category}</span>
+                        <span className="tool-category-label">{tool.category}</span>
                       </td>
 
                       {/* CONDITION */}
                       <td>{renderConditionBadge(tool.currentCondition)}</td>
 
-                      {/* CURRENT CUSTODY */}
+                      {/* ASSIGNMENT / LOCATION */}
                       <td>
                         {tool.assignedTo ? (
-                          <div className="custody-info-box">
-                            <div className="custody-worker font-semibold text-slate-900">
-                              {tool.assignedTo.workerName}
+                          <div className="assignment-holder">
+                            <div className="flex items-center gap-1.5 font-semibold text-slate-900 text-xs">
+                              <User size={14} className="text-slate-500 shrink-0" />
+                              <span>{tool.assignedTo.workerName}</span>
                             </div>
-                            <div className="custody-project flex items-center gap-1 text-[11px] text-slate-500">
-                              <Briefcase size={11} /> {tool.assignedTo.projectName}
-                            </div>
-                            <div className="custody-due flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
-                              <Clock size={11} /> Due: {tool.assignedTo.expectedReturnDate}
-                              {tool.assignedTo.isOverdue && (
-                                <span className="overdue-tag">Overdue</span>
-                              )}
+                            <div className="assignment-subtext">
+                              {tool.assignedTo.projectShortName || tool.assignedTo.projectName}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-slate-400 text-xs italic">
-                            In Crib ({tool.storageLocation})
-                          </span>
+                          <div className="location-holder flex items-center gap-1.5 text-xs text-slate-600">
+                            <MapPin size={14} className="text-slate-400 shrink-0" />
+                            <span>{tool.storageLocation}</span>
+                          </div>
                         )}
                       </td>
 
@@ -439,35 +469,70 @@ export const Tools: React.FC = () => {
                       <td>{renderStatusBadge(tool.status)}</td>
 
                       {/* ACTIONS */}
-                      <td>
-                        <div className="tool-row-actions">
-                          {tool.status === "Available" && (
-                            <button
-                              onClick={() => setAssigningTool(tool)}
-                              className="btn-action-assign"
-                              title="Assign to Worker"
-                            >
-                              <Link2 size={13} /> Assign
-                            </button>
-                          )}
-
-                          {tool.status === "In Use" && (
-                            <button
-                              onClick={() => setReturningTool(tool)}
-                              className="btn-action-return"
-                              title="Check-In / Return Tool"
-                            >
-                              <CheckCircle2 size={13} /> Check-In
-                            </button>
-                          )}
-
+                      <td className="text-right">
+                        <div className="mockup-action-buttons">
                           <button
                             onClick={() => setJourneyTool(tool)}
-                            className="btn-action-journey"
-                            title="View Complete Tool Journey Audit Trail"
+                            className="btn-mockup-journey"
+                            title="View Lifecycle Journey"
                           >
-                            <History size={13} /> Journey
+                            <History size={14} />
+                            <span>Journey</span>
                           </button>
+
+                          <div className="relative inline-block">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId((prev) => (prev === tool.id ? null : tool.id));
+                              }}
+                              className="btn-mockup-more"
+                              title="More options"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+
+                            {activeMenuId === tool.id && (
+                              <div
+                                className="absolute right-0 top-8 z-30 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 min-w-[170px] text-left"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {tool.status === "Available" && (
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-2"
+                                    onClick={() => {
+                                      setAssigningTool(tool);
+                                      setActiveMenuId(null);
+                                    }}
+                                  >
+                                    <Link2 size={14} className="text-blue-600" /> Assign to Worker
+                                  </button>
+                                )}
+
+                                {tool.status === "In Field" && (
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2"
+                                    onClick={() => {
+                                      setReturningTool(tool);
+                                      setActiveMenuId(null);
+                                    }}
+                                  >
+                                    <CornerDownLeft size={14} /> Check-In / Return
+                                  </button>
+                                )}
+
+                                <button
+                                  className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                  onClick={() => {
+                                    setJourneyTool(tool);
+                                    setActiveMenuId(null);
+                                  }}
+                                >
+                                  <History size={14} className="text-slate-500" /> View History
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -486,7 +551,7 @@ export const Tools: React.FC = () => {
           from={filteredTools.length > 0 ? (currentPage - 1) * perPage + 1 : 0}
           to={Math.min(currentPage * perPage, filteredTools.length)}
           perPage={perPage}
-          perPageOptions={[5, 10, 25, 50]}
+          perPageOptions={[5, 10, 20]}
           onPageChange={(p) => setCurrentPage(p)}
           onPerPageChange={(newPerPage) => {
             setPerPage(newPerPage);

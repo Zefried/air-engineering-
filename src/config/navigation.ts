@@ -7,6 +7,7 @@ import {
   Package,
   FileText,
   PlusSquare,
+  FolderTree,
 } from "lucide-react";
 import type { Role } from "../Context/AuthContextValue";
 
@@ -17,6 +18,9 @@ const Tools = lazy(() => import("../Pages/Tools/Tools"));
 const AddTool = lazy(() => import("../Pages/Tools/AddTool"));
 const Materials = lazy(() => import("../Pages/Materials/Materials"));
 const AddMaterial = lazy(() => import("../Pages/Materials/AddMaterial"));
+const Products = lazy(() => import("../Pages/Products/Products"));
+const AddProduct = lazy(() => import("../Pages/Products/AddProduct"));
+const Categories = lazy(() => import("../Pages/Categories/Categories"));
 const Team = lazy(() => import("../Pages/Team/Team"));
 const AddEmployee = lazy(() => import("../Pages/Team/AddEmployee"));
 const Contracts = lazy(() => import("../Pages/Contracts/Contracts"));
@@ -78,6 +82,54 @@ export const navigationConfig: NavigationItem[] = [
     ],
   },
   {
+    name: "Products & Stock",
+    icon: Package,
+    allowedRoles: ["admin", "subadmin", "technician"],
+    showInSidebar: true,
+    children: [
+      {
+        name: "Products & Sizes",
+        icon: Package,
+        path: "/dashboard/products",
+        element: React.createElement(Products),
+        allowedRoles: ["admin", "subadmin", "technician"],
+        showInSidebar: true,
+      },
+      {
+        name: "Add Product",
+        icon: PlusSquare,
+        path: "/dashboard/add-product",
+        element: React.createElement(AddProduct),
+        allowedRoles: ["admin", "subadmin"],
+        showInSidebar: true,
+      },
+      {
+        name: "Categories / Taxonomy",
+        icon: FolderTree,
+        path: "/dashboard/categories",
+        element: React.createElement(Categories),
+        allowedRoles: ["admin", "subadmin"],
+        showInSidebar: true,
+      },
+      {
+        name: "Materials Overview",
+        icon: Package,
+        path: "/dashboard/materials",
+        element: React.createElement(Materials),
+        allowedRoles: ["admin", "subadmin", "technician"],
+        showInSidebar: false, // Accessible directly, but streamlined under Products in sidebar
+      },
+      {
+        name: "Add Material",
+        icon: PlusSquare,
+        path: "/dashboard/add-material",
+        element: React.createElement(AddMaterial),
+        allowedRoles: ["admin", "subadmin"],
+        showInSidebar: false,
+      },
+    ],
+  },
+  {
     name: "Tools",
     icon: Wrench,
     allowedRoles: ["admin", "subadmin", "technician"],
@@ -96,30 +148,6 @@ export const navigationConfig: NavigationItem[] = [
         icon: PlusSquare,
         path: "/dashboard/add-tool",
         element: React.createElement(AddTool),
-        allowedRoles: ["admin", "subadmin"],
-        showInSidebar: true,
-      },
-    ],
-  },
-  {
-    name: "Materials",
-    icon: Package,
-    allowedRoles: ["admin", "subadmin", "technician"],
-    showInSidebar: true,
-    children: [
-      {
-        name: "All Materials",
-        icon: Package,
-        path: "/dashboard/materials",
-        element: React.createElement(Materials),
-        allowedRoles: ["admin", "subadmin", "technician"],
-        showInSidebar: true,
-      },
-      {
-        name: "Add Material",
-        icon: PlusSquare,
-        path: "/dashboard/add-material",
-        element: React.createElement(AddMaterial),
         allowedRoles: ["admin", "subadmin"],
         showInSidebar: true,
       },

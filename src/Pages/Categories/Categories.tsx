@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
-  FolderTree,
   Plus,
   Edit2,
   Trash2,
   Search,
   CornerDownRight,
   AlertCircle,
-  CheckCircle2,
+  Check,
   X,
   Layers,
   ArrowRight
@@ -140,16 +139,14 @@ export const Categories: React.FC = () => {
   // Safe parent list to prevent circular self-parenting
   const availableParents = useMemo(() => {
     return categories.filter((c) => {
-      if (!editingId) return c.parentId === null; // only allow top-level as parent (2-level depth)
-      // Category cannot be its own parent
+      if (!editingId) return c.parentId === null;
       if (c.id === editingId) return false;
-      // Cannot select a child as its own parent
       if (c.parentId === editingId) return false;
       return c.parentId === null;
     });
   }, [categories, editingId]);
 
-  // Hierarchical sort (Parent followed by its immediate children)
+  // Hierarchical sort
   const hierarchicalCategories = useMemo(() => {
     const parents = categories.filter((c) => c.parentId === null);
     const result: { item: CategoryItem; isChild: boolean; parentName?: string }[] = [];
@@ -162,7 +159,6 @@ export const Categories: React.FC = () => {
       });
     });
 
-    // Also include any orphans if any
     const handledIds = new Set(result.map((r) => r.item.id));
     categories.forEach((cat) => {
       if (!handledIds.has(cat.id)) {
@@ -192,7 +188,6 @@ export const Categories: React.FC = () => {
 
     const finalSlug = slug.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-    // Check duplicate slug
     const duplicate = categories.find(
       (c) => c.slug === finalSlug && c.id !== editingId
     );
@@ -202,7 +197,6 @@ export const Categories: React.FC = () => {
     }
 
     if (editingId) {
-      // Update
       setCategories((prev) =>
         prev.map((cat) =>
           cat.id === editingId
@@ -219,7 +213,6 @@ export const Categories: React.FC = () => {
       );
       resetForm();
     } else {
-      // Create
       const newCat: CategoryItem = {
         id: generateUniqueId("cat"),
         name: name.trim(),
@@ -246,16 +239,14 @@ export const Categories: React.FC = () => {
   };
 
   const handleDelete = (cat: CategoryItem) => {
-    // Edge case guard 1: Subcategories exist
     const childCount = categories.filter((c) => c.parentId === cat.id).length;
     if (childCount > 0) {
       setGuardWarning(
-        `Cannot delete '${cat.name}': It has ${childCount} active subcategories. Please reassign or delete the subcategories first.`
+        `Cannot delete '${cat.name}': It has ${childCount} active subcategories. Please reassign or delete subcategories first.`
       );
       return;
     }
 
-    // Edge case guard 2: Products assigned
     if (cat.productCount > 0) {
       setGuardWarning(
         `Cannot delete '${cat.name}': It currently has ${cat.productCount} products assigned. Move products to another category first.`
@@ -282,41 +273,37 @@ export const Categories: React.FC = () => {
 
   return (
     <div className="categories-page">
-      {/* HEADER */}
+      {/* TOP BREADCRUMB */}
+      <div className="categories-breadcrumb">Inventory</div>
+
+      {/* HEADER SECTION */}
       <div className="categories-header">
-        <h2>
-          <FolderTree size={26} className="text-blue-600" />
-          Product Taxonomy & Categories
-        </h2>
-        <p>WordPress-style category and subcategory structure for HVAC units, materials, and parts</p>
+        <h1>Product Categories & Taxonomy</h1>
+        <p>WordPress-style category and subcategory structure for HVAC units, materials, and parts.</p>
       </div>
 
       {guardWarning && (
         <div className="guard-alert-box">
-          <AlertCircle size={20} className="shrink-0 text-amber-600" />
+          <AlertCircle size={20} className="shrink-0" />
           <div className="flex-1">
             <strong>Action Guarded:</strong> {guardWarning}
           </div>
-          <button
-            onClick={() => setGuardWarning(null)}
-            className="text-amber-800 hover:text-amber-950 font-bold"
-          >
+          <button onClick={() => setGuardWarning(null)}>
             <X size={16} />
           </button>
         </div>
       )}
 
-      {/* 2-COLUMN WORKFLOW */}
+      {/* 2-COLUMN LAYOUT */}
       <div className="categories-layout">
-        {/* LEFT COLUMN: FORM */}
+        {/* LEFT COLUMN: FORM CARD */}
         <div className="category-form-card">
           <div className="card-title">
-            {editingId ? <Edit2 size={18} /> : <Plus size={18} />}
             {editingId ? "Edit Category" : "Add New Category"}
           </div>
           <div className="card-subtitle">
             {editingId
-              ? "Modify category details or change its parent"
+              ? "Modify category details or change its parent hierarchy"
               : "Create a top-level category or a nested subcategory"}
           </div>
 
@@ -337,7 +324,7 @@ export const Categories: React.FC = () => {
                 onChange={(e) => handleNameChange(e.target.value)}
                 required
               />
-              <p className="hint">The name as it will appear in product forms and filters.</p>
+              <p className="hint">The name as it will appear in catalog forms and filters.</p>
             </div>
 
             <div className="form-group">
@@ -354,7 +341,7 @@ export const Categories: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <p className="hint">Assign a parent to make this a nested subcategory.</p>
+              <p className="hint">Assign a parent to nest this as a subcategory.</p>
             </div>
 
             <div className="form-group">
@@ -376,11 +363,11 @@ export const Categories: React.FC = () => {
                 value={defaultUom}
                 onChange={(e) => setDefaultUom(e.target.value)}
               >
-                <option value="Pieces">Pieces (Units/Equipments)</option>
+                <option value="Pieces">Pieces (Units / Equipment)</option>
                 <option value="Meters">Meters (Copper Pipes / Insulations)</option>
-                <option value="Kg">Kg (Gases / Welding rods / Refrigerants)</option>
-                <option value="Sq.Ft">Sq.Ft (GI Ducting sheets / Acoustic panels)</option>
-                <option value="Liters">Liters (Chilled water chemicals / Oils)</option>
+                <option value="Kg">Kg (Refrigerant Gases / Rods)</option>
+                <option value="Sq.Ft">Sq.Ft (GI Ducting Sheets / Wraps)</option>
+                <option value="Liters">Liters (Chilled Water Chemicals)</option>
               </select>
               <p className="hint">Default consumption unit for items in this category.</p>
             </div>
@@ -397,12 +384,12 @@ export const Categories: React.FC = () => {
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="btn-primary">
-                {editingId ? <CheckCircle2 size={16} /> : <Plus size={16} />}
+              <button type="submit" className="btn-primary-dark">
+                {editingId ? <Check size={16} /> : <Plus size={16} />}
                 {editingId ? "Save Changes" : "Add Category"}
               </button>
               {editingId && (
-                <button type="button" onClick={resetForm} className="btn-secondary">
+                <button type="button" onClick={resetForm} className="btn-secondary-light">
                   Cancel
                 </button>
               )}
@@ -410,19 +397,19 @@ export const Categories: React.FC = () => {
           </form>
         </div>
 
-        {/* RIGHT COLUMN: TAXONOMY HIERARCHY TABLE */}
+        {/* RIGHT COLUMN: TAXONOMY TABLE CARD */}
         <div className="category-table-card">
           <div className="table-toolbar">
-            <div className="table-search">
+            <div className="search-pill-container">
               <Search size={16} className="search-icon" />
               <input
                 type="text"
-                placeholder="Search categories or subcategories..."
+                placeholder="Search categories..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="table-stats-badge">
+            <div className="table-stats-pill">
               Total Categories: <strong>{categories.length}</strong>
             </div>
           </div>
@@ -432,7 +419,7 @@ export const Categories: React.FC = () => {
               <thead>
                 <tr>
                   <th>Category Name</th>
-                  <th>Parent / Level</th>
+                  <th>Parent / Hierarchy</th>
                   <th>Default UOM</th>
                   <th className="text-center">Products</th>
                   <th className="text-right">Actions</th>
@@ -453,31 +440,27 @@ export const Categories: React.FC = () => {
                       <td>
                         <div className="cat-name-cell">
                           {isChild && (
-                            <span className="cat-indent-line">
+                            <span className="cat-indent-icon">
                               <CornerDownRight size={15} />
                             </span>
                           )}
                           <div>
-                            <span className={`font-semibold ${isChild ? "text-blue-900" : "text-gray-900"}`}>
-                              {item.name}
-                            </span>
-                            <div className="text-xs text-gray-400 font-mono">
-                              /{item.slug}
-                            </div>
+                            <div className="cat-primary-name">{item.name}</div>
+                            <div className="cat-slug-sub">/{item.slug}</div>
                           </div>
                         </div>
                       </td>
                       <td>
                         {isChild ? (
-                          <span className="cat-parent-badge">
+                          <span className="cat-parent-pill">
                             <ArrowRight size={11} /> {parentName}
                           </span>
                         ) : (
-                          <span className="cat-top-level-badge">Top-Level</span>
+                          <span className="cat-top-level-pill">Top-Level</span>
                         )}
                       </td>
                       <td>
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-medium">
+                        <span className="cat-uom-pill">
                           {item.defaultUom || "Pieces"}
                         </span>
                       </td>
@@ -490,14 +473,14 @@ export const Categories: React.FC = () => {
                         <div className="cat-actions">
                           <button
                             onClick={() => handleEdit(item)}
-                            className="action-btn"
+                            className="action-icon-btn"
                             title="Edit Category"
                           >
                             <Edit2 size={15} />
                           </button>
                           <button
                             onClick={() => handleDelete(item)}
-                            className="action-btn delete"
+                            className="action-icon-btn delete"
                             title="Delete Category"
                           >
                             <Trash2 size={15} />

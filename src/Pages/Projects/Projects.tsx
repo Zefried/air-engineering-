@@ -1,166 +1,253 @@
-import { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
-  Eye,
-  Edit2,
-  Trash2,
-  User,
+  Briefcase,
+  Building2,
+  MapPin,
+  HardHat,
   Package,
-  Clock,
-  ArrowRight,
-  RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  Trash2,
+  ListOrdered
 } from 'lucide-react';
-import './Styles/Projects.css';
 import { Link } from 'react-router-dom';
-import { Can } from '../../Components/Auth/Can';
+import './Styles/Projects.css';
+import type { ProjectSiteItem, ProjectWorker, ProjectStatus } from './projectTypes';
+import { INITIAL_PROJECT_SITES } from './projectTypes';
+import { ManageSiteWorkersModal } from './Components/ManageSiteWorkersModal';
 import { IssueMaterialModal } from './Components/IssueMaterialModal';
-import type { MaterialIssueRecord } from './Components/IssueMaterialModal';
+import { MaterialAllocationsTable } from './Components/MaterialAllocationsTable';
+import { projectsApi } from '../../api/projectsApi';
+import type { ProjectItem } from '../../api/projectsApi';
+import { usersApi } from '../../api/usersApi';
 
-const INITIAL_PROJECTS = [
-  {
-    id: "PRJ-001",
-    name: "Central Mall HVAC",
-    client: "Central Mall",
-    manager: "Rahul Sharma",
-    status: "Assigned",
-    startDate: "12 Oct, 2026",
-    dueDate: "20 Nov, 2026",
-  },
-  {
-    id: "PRJ-002",
-    name: "Tech Park Server Room",
-    client: "Tech Park",
-    manager: "Amit Das",
-    status: "Assigned",
-    startDate: "15 Oct, 2026",
-    dueDate: "05 Dec, 2026",
-  },
-  {
-    id: "PRJ-003",
-    name: "City Hospital Wing B",
-    client: "City Hospital",
-    manager: null,
-    status: "Unassigned",
-    startDate: "22 Oct, 2026",
-    dueDate: "10 Jan, 2027",
-  },
+const DEFAULT_ALL_WORKERS: ProjectWorker[] = [
+  { id: 4, name: 'Rahul Kumar', email: 'worker1@123', role: 'worker', phone: '+91 98765 43210' },
+  { id: 5, name: 'Mohammed Zafar', email: 'worker2@123', role: 'worker', phone: '+91 98765 77889' },
+  { id: 6, name: 'Amit Das', email: 'worker3@123', role: 'worker', phone: '+91 98765 11223' },
 ];
 
-const INITIAL_MATERIAL_LOGS: MaterialIssueRecord[] = [
-  {
-    id: "LOG-01",
-    projectId: "PRJ-001",
-    projectName: "Central Mall HVAC",
-    productName: "VRF Grade Seamless Copper Pipe",
-    sizeLabel: "1/2\" (12.7 mm)",
-    quantity: 3.5,
-    uom: "Meters",
-    type: "issue",
-    loggedBy: "Rahul (Site Supervisor)",
-    timestamp: "10 mins ago",
-    notes: "Rooftop outdoor unit connection",
-  },
-  {
-    id: "LOG-02",
-    projectId: "PRJ-002",
-    projectName: "Tech Park Server Room",
-    productName: "Pure Fluorinated Refrigerant Gas",
-    sizeLabel: "R-410A (10 Kg)",
-    quantity: 1.8,
-    uom: "Kg",
-    type: "issue",
-    loggedBy: "Amit Das (Engineer)",
-    timestamp: "1 hour ago",
-    notes: "Recharge for circuit 2 pressure test",
-  },
-  {
-    id: "LOG-03",
-    projectId: "PRJ-001",
-    projectName: "Central Mall HVAC",
-    productName: "Nitrile Pipe Insulation",
-    sizeLabel: "1/2\" x 13mm Wall",
-    quantity: 6.0,
-    uom: "Meters",
-    type: "issue",
-    loggedBy: "Rakesh (Technician)",
-    timestamp: "3 hours ago",
-    notes: "Suction line wrapping",
-  },
-];
+export const Projects: React.FC = () => {
+  // Navigation tabs: 'projects' | 'allocations'
+  const [activeTab, setActiveTab] = useState<'projects' | 'allocations'>('projects');
 
-const Projects = () => {
-  const [search, setSearch] = useState("");
-  const [projects] = useState(INITIAL_PROJECTS);
-  const [materialLogs, setMaterialLogs] = useState<MaterialIssueRecord[]>(INITIAL_MATERIAL_LOGS);
+  // Real API Projects state
+  const [apiProjects, setApiProjects] = useState<ProjectItem[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState<boolean>(true);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalProjectId, setModalProjectId] = useState<string | undefined>(undefined);
+  // Available Workers for Site Crew management
+  const [availableWorkers, setAvailableWorkers] = useState<ProjectWorker[]>(DEFAULT_ALL_WORKERS);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+
+  // Manage Workers Modal State
+  const [managingProject, setManagingProject] = useState<ProjectSiteItem | null>(null);
+
+  // Material Issue Modal State
+  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+  const [modalProjectId, setModalProjectId] = useState<number | undefined>(undefined);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const handleOpenIssueModal = (projId?: string) => {
-    setModalProjectId(projId);
-    setIsModalOpen(true);
+  // Fetch real projects from backend API
+  const fetchProjects = useCallback(async () => {
+    try {
+      setIsLoadingProjects(true);
+      const res = await projectsApi.getProjects();
+      if (res && res.data) {
+        setApiProjects(res.data);
+      }
+    } catch (err) {
+      console.warn('Backend projects API offline or error, falling back to local defaults', err);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  // Load available technicians dynamically from usersApi
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await usersApi.getAll();
+        if (res && res.data && res.data.data) {
+          const workers = res.data.data
+            .filter((u) => u.role === 'worker' || u.role === 'technician')
+            .map((u) => ({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              role: u.role,
+              phone: u.phone || undefined,
+            }));
+          if (workers.length > 0) {
+            setAvailableWorkers(workers);
+          }
+        }
+      } catch (err) {
+        console.warn('Using default workers list fallback', err);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  // Save crew changes from ManageSiteWorkersModal
+  const handleSaveSiteCrew = async (projectIdStr: string, updatedWorkers: ProjectWorker[]) => {
+    const projIdNum = parseInt(projectIdStr.replace(/\D/g, ''), 10) || 1;
+    const workerIds = updatedWorkers.map((w) => Number(w.id));
+
+    try {
+      await projectsApi.updateProject(projIdNum, {
+        name: managingProject?.name || 'Project Site',
+        client: managingProject?.client || 'Client',
+        site_location: managingProject?.siteLocation || 'Site',
+        worker_ids: workerIds,
+      });
+      fetchProjects();
+      setToastMessage(`Updated field technicians assigned to site!`);
+    } catch (err) {
+      console.error('Failed to update crew on backend:', err);
+      setToastMessage(`Updated site crew locally.`);
+    }
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const handleMaterialLogged = (newRecord: MaterialIssueRecord) => {
-    setMaterialLogs((prev) => [newRecord, ...prev]);
-    setToastMessage(
-      `Successfully logged ${newRecord.quantity} ${newRecord.uom} of ${newRecord.sizeLabel} to ${newRecord.projectName}!`
-    );
-    setTimeout(() => setToastMessage(null), 5000);
-  };
-
-  const handleUndoLog = (logId: string) => {
-    const record = materialLogs.find((l) => l.id === logId);
-    if (!record) return;
-    if (window.confirm(`Undo consumption of ${record.quantity} ${record.uom} for ${record.projectName}?`)) {
-      setMaterialLogs((prev) => prev.filter((l) => l.id !== logId));
-      setToastMessage(`Reverted: ${record.quantity} ${record.uom} returned to warehouse inventory.`);
+  // Delete project
+  const handleDeleteProject = async (id: number | string, name: string) => {
+    if (window.confirm(`Are you sure you want to remove project "${name}" and its site records?`)) {
+      try {
+        await projectsApi.deleteProject(id);
+        fetchProjects();
+        setToastMessage(`Project "${name}" removed successfully.`);
+      } catch (err) {
+        console.error('Failed to delete project on backend:', err);
+        setApiProjects((prev) => prev.filter((p) => p.id !== id));
+        setToastMessage(`Project removed.`);
+      }
       setTimeout(() => setToastMessage(null), 4000);
     }
   };
 
-  const filteredProjects = projects.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.client.toLowerCase().includes(search.toLowerCase()) ||
-    p.id.toLowerCase().includes(search.toLowerCase())
-  );
+  // Material Issue Handlers
+  const handleOpenIssueModal = (projId?: number) => {
+    setModalProjectId(projId);
+    setIsIssueModalOpen(true);
+  };
+
+  const handleMaterialSuccess = () => {
+    fetchProjects();
+    setToastMessage('Material movement successfully recorded in the immutable ledger!');
+    setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  // Normalize API projects for UI display
+  const displayProjects: (ProjectSiteItem & { dbId: number })[] = apiProjects.length > 0
+    ? apiProjects.map((p) => {
+        let mappedStatus: ProjectStatus = 'In Progress';
+        if (p.status === 'planning') mappedStatus = 'Planning';
+        else if (p.status === 'on_hold') mappedStatus = 'On Hold';
+        else if (p.status === 'completed') mappedStatus = 'Completed';
+
+        return {
+          dbId: p.id,
+          id: p.project_code || `PRJ-${p.id}`,
+          name: p.name,
+          client: p.client,
+          siteLocation: p.site_location,
+          managerId: p.manager_id || undefined,
+          managerName: p.manager?.name || 'Site Manager',
+          status: mappedStatus,
+          startDate: p.start_date || 'Active',
+          dueDate: p.due_date || 'TBD',
+          workers: (p.workers || []).map((w) => ({
+            id: w.id,
+            name: w.name,
+            email: w.email,
+            role: w.role,
+            phone: w.phone,
+          })),
+          description: p.description || undefined,
+        };
+      })
+    : INITIAL_PROJECT_SITES.map((p, idx) => ({ ...p, dbId: idx + 1 }));
+
+  // Filtered Projects
+  const filteredProjects = displayProjects.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.client.toLowerCase().includes(search.toLowerCase()) ||
+      p.siteLocation.toLowerCase().includes(search.toLowerCase()) ||
+      p.id.toLowerCase().includes(search.toLowerCase()) ||
+      p.workers.some((w) => w.name.toLowerCase().includes(search.toLowerCase()));
+
+    const matchesStatus =
+      statusFilter === 'All' || p.status.toLowerCase() === statusFilter.toLowerCase();
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // KPI Calculations
+  const totalProjectsCount = displayProjects.length;
+  const activeSitesCount = displayProjects.filter((p) => p.status === 'In Progress').length;
+  const deployedWorkersSet = new Set<string | number>();
+  displayProjects.forEach((p) => {
+    if (p.status === 'In Progress') {
+      p.workers.forEach((w) => deployedWorkersSet.add(w.id));
+    }
+  });
+  const deployedWorkersCount = deployedWorkersSet.size;
 
   return (
-    <div className="admin-panel-content">
-      {/* HEADER */}
-      <div className="flex justify-between items-end mb-6 flex-wrap gap-4">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            Projects Overview & Site Materials
-          </h2>
-          <p className="text-gray-500">
-            Monitor engineering projects and track fractional material consumption
+    <div className="projects-container">
+      {/* PAGE HEADER */}
+      <div className="projects-header">
+        <div className="projects-title-area">
+          <h1>
+            <Building2 size={24} /> Projects & Site Allocations
+          </h1>
+          <p>
+            Manage HVAC commercial job sites, assigned technician crews, and track ledger material movements.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="projects-header-actions">
           <button
             onClick={() => handleOpenIssueModal(undefined)}
-            className="btn-secondary flex items-center gap-2 bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm"
+            className="btn-header-material"
           >
-            <Package size={17} className="text-blue-600" />
-            Issue / Return Material
+            <Package size={16} /> Issue / Return Material
           </button>
-
-          <Can roles={["admin", "subadmin"]}>
-            <Link to="/dashboard/add-project" className="add-btn flex items-center gap-2">
-              <Plus size={16} />
-              Add Project
-            </Link>
-          </Can>
+          <Link to="/dashboard/add-project" className="btn-header-add">
+            <Plus size={16} /> Add Project / Site
+          </Link>
         </div>
       </div>
 
-      {/* TOAST NOTICE */}
+      {/* TOP NAVIGATION TABS */}
+      <div className="projects-nav-tabs">
+        <button
+          className={`projects-nav-tab-btn ${activeTab === 'projects' ? 'active' : ''}`}
+          onClick={() => setActiveTab('projects')}
+        >
+          <Building2 size={16} />
+          <span>Active Projects & Sites</span>
+          <span className="projects-tab-badge">{totalProjectsCount}</span>
+        </button>
+
+        <button
+          className={`projects-nav-tab-btn ${activeTab === 'allocations' ? 'active' : ''}`}
+          onClick={() => setActiveTab('allocations')}
+        >
+          <ListOrdered size={16} />
+          <span>Material Allocations & Audit Trail</span>
+          <span className="projects-tab-badge">Ledger</span>
+        </button>
+      </div>
+
+      {/* TOAST MESSAGE */}
       {toastMessage && (
         <div className="p-3 mb-6 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-sm font-medium flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -173,201 +260,243 @@ const Projects = () => {
         </div>
       )}
 
-      {/* QUICK STATS */}
-      <div className="projects-stats-grid mb-6">
-        <div className="proj-stat-card flex-1 sm:flex-none">
-          <p className="stat-label">Active Projects</p>
-          <h3 className="stat-value">{projects.length}</h3>
-        </div>
-        <div className="proj-stat-card flex-1 sm:flex-none">
-          <p className="stat-label">Site Material Logs</p>
-          <h3 className="stat-value text-blue-600">{materialLogs.length}</h3>
-        </div>
-        <div className="proj-stat-card flex-1 sm:flex-none">
-          <p className="stat-label">Project Managers</p>
-          <h3 className="stat-value">4</h3>
-        </div>
-      </div>
+      {/* TAB 1: ACTIVE PROJECTS & SITES */}
+      {activeTab === 'projects' && (
+        <>
+          {/* KPI METRIC CARDS */}
+          <div className="projects-kpi-grid">
+            <div className="projects-kpi-card">
+              <div className="kpi-card-info">
+                <p>Total Projects</p>
+                <h3>{totalProjectsCount}</h3>
+              </div>
+              <div className="kpi-icon-pill">
+                <Briefcase size={20} />
+              </div>
+            </div>
 
-      {/* PROJECTS TABLE SECTION */}
-      <div className="projects-table-container mb-8">
-        <div className="table-header-actions mb-4 flex justify-between items-center">
-          <div className="search-bar">
-            <Search size={16} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search project name or client..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+            <div className="projects-kpi-card">
+              <div className="kpi-card-info">
+                <p>Active Job Sites</p>
+                <h3>{activeSitesCount}</h3>
+              </div>
+              <div className="kpi-icon-pill">
+                <Building2 size={20} />
+              </div>
+            </div>
 
-        <div className="table-responsive">
-          <table className="projects-table w-full text-left border-collapse min-w-[700px]">
-            <thead>
-              <tr>
-                <th className="px-3">Project Info</th>
-                <th className="px-3">Assigned Manager</th>
-                <th className="px-3">Dates</th>
-                <th className="px-3">Status</th>
-                <th className="px-3 text-center">Site Material Action</th>
-                <th className="text-right px-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProjects.map((proj) => (
-                <tr key={proj.id}>
-                  <td className="px-3">
-                    <div className="proj-info">
-                      <h4 className="font-bold">{proj.name}</h4>
-                      <p className="text-xs text-gray-500">{proj.id} &bull; {proj.client}</p>
-                    </div>
-                  </td>
-                  <td className="px-3">
-                    {proj.manager ? (
-                      <div className="flex items-center gap-2">
-                        <div className="manager-avatar w-7 h-7 rounded-full flex items-center justify-center">
-                          <User size={13} />
-                        </div>
-                        <span className="font-semibold text-sm">{proj.manager}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <div className="manager-avatar w-7 h-7 rounded-full flex items-center justify-center opacity-50">
-                          <User size={13} />
-                        </div>
-                        <span className="text-sm italic">No manager</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3">
-                    <div className="dates-info text-xs flex flex-col gap-1">
-                      <p><span className="text-gray-500">Start:</span> {proj.startDate}</p>
-                      <p><span className="text-gray-500">Due:</span> {proj.dueDate}</p>
-                    </div>
-                  </td>
-                  <td className="px-3">
-                    <span className={`status-badge ${proj.status === 'Assigned' ? 'assigned' : 'unassigned'}`}>
-                      {proj.status}
-                    </span>
-                  </td>
-                  <td className="px-3 text-center">
-                    <button
-                      onClick={() => handleOpenIssueModal(proj.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg border border-blue-200 transition"
-                      title="Issue material directly to this project"
-                    >
-                      <Package size={14} />
-                      Log Material
-                    </button>
-                  </td>
-                  <td className="px-3">
-                    <div className="actions-cell flex justify-end gap-1">
-                      <button className="action-btn view" title="View"><Eye size={15} /></button>
-                      <Can roles={["admin", "subadmin"]}>
-                        <button className="action-btn edit" title="Edit"><Edit2 size={15} /></button>
-                        <button className="action-btn delete" title="Delete"><Trash2 size={15} /></button>
-                      </Can>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            <div className="projects-kpi-card">
+              <div className="kpi-card-info">
+                <p>Technicians Deployed</p>
+                <h3>{deployedWorkersCount}</h3>
+              </div>
+              <div className="kpi-icon-pill">
+                <HardHat size={20} />
+              </div>
+            </div>
 
-      {/* RECENT SITE MATERIAL CONSUMPTION LOGS */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Clock size={19} className="text-blue-600" />
-              Live Project Material Consumption Log
-            </h3>
-            <p className="text-xs text-gray-500">
-              Audit trail of exact materials, sizes, and fractional decimals deducted on site
-            </p>
+            <div className="projects-kpi-card">
+              <div className="kpi-card-info">
+                <p>Movement Ledger</p>
+                <h3>Live</h3>
+              </div>
+              <div className="kpi-icon-pill">
+                <Package size={20} />
+              </div>
+            </div>
           </div>
 
-          <button
-            onClick={() => handleOpenIssueModal()}
-            className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1"
-          >
-            + Log New Material <ArrowRight size={13} />
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase">
-                <th className="p-3">Project Destination</th>
-                <th className="p-3">Material & Size Used</th>
-                <th className="p-3">Quantity Deducted</th>
-                <th className="p-3">Logged By</th>
-                <th className="p-3">Site Notes</th>
-                <th className="p-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {materialLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50/80">
-                  <td className="p-3">
-                    <span className="font-bold text-gray-900">{log.projectName}</span>
-                    <span className="block text-[11px] text-gray-400">{log.projectId}</span>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-semibold text-gray-800">{log.productName}</span>
-                    <span className="block text-[11px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded w-fit mt-0.5 border border-blue-100">
-                      {log.sizeLabel}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <span className="text-sm font-extrabold text-gray-900">
-                      {log.type === "return" ? "+ " : "- "}
-                      {log.quantity.toFixed(2)} {log.uom}
-                    </span>
-                    <span
-                      className={`block text-[10px] uppercase font-bold ${
-                        log.type === "return" ? "text-emerald-600" : "text-amber-600"
-                      }`}
-                    >
-                      {log.type === "return" ? "Site Restock" : "Site Issued"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <span className="text-gray-700 font-medium">{log.loggedBy}</span>
-                    <span className="block text-[11px] text-gray-400">{log.timestamp}</span>
-                  </td>
-                  <td className="p-3 text-gray-600 max-w-xs truncate">
-                    {log.notes || "—"}
-                  </td>
-                  <td className="p-3 text-right">
-                    <button
-                      onClick={() => handleUndoLog(log.id)}
-                      className="text-gray-400 hover:text-rose-600 p-1.5 rounded inline-flex items-center gap-1 text-[11px] font-semibold transition"
-                      title="Undo this consumption entry"
-                    >
-                      <RotateCcw size={12} />
-                      Undo
-                    </button>
-                  </td>
-                </tr>
+          {/* FILTER & SEARCH BAR */}
+          <div className="projects-filter-bar">
+            <div className="status-filter-pills">
+              {['All', 'In Progress', 'Planning', 'Completed'].map((tab) => (
+                <button
+                  key={tab}
+                  className={`status-filter-btn ${statusFilter === tab ? 'active' : ''}`}
+                  onClick={() => setStatusFilter(tab)}
+                >
+                  {tab === 'All' ? 'All Sites' : tab}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </div>
+
+            <div className="projects-search-box">
+              <Search size={16} />
+              <input
+                type="text"
+                className="projects-search-input"
+                placeholder="Search project, site location, technician..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* MAIN PROJECTS & SITES TABLE */}
+          <div className="projects-table-card">
+            <table className="projects-table">
+              <thead>
+                <tr>
+                  <th>Project & Job Site Location</th>
+                  <th>Site Incharge</th>
+                  <th>Deployed Field Technicians</th>
+                  <th>Timeline</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoadingProjects ? (
+                  <tr>
+                    <td colSpan={6} className="projects-empty-row">
+                      Loading projects and job sites from database...
+                    </td>
+                  </tr>
+                ) : filteredProjects.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="projects-empty-row">
+                      No projects or job sites found matching "{search}".
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProjects.map((proj) => (
+                    <tr key={proj.id}>
+                      {/* PROJECT & SITE */}
+                      <td>
+                        <h4 className="project-name-text">{proj.name}</h4>
+                        <p className="project-client-sub">
+                          {proj.id} &bull; {proj.client}
+                        </p>
+                        <div className="site-location-pill" title={proj.siteLocation}>
+                          <MapPin size={11} className="text-slate-500" />
+                          <span>{proj.siteLocation}</span>
+                        </div>
+                      </td>
+
+                      {/* SITE INCHARGE */}
+                      <td>
+                        <div className="site-manager-badge">
+                          <div className="manager-avatar-circle">
+                            {proj.managerName ? proj.managerName.charAt(0) : 'M'}
+                          </div>
+                          <div>
+                            <p className="manager-name">{proj.managerName}</p>
+                            <p className="text-[11px] text-slate-400">Site Manager</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* DEPLOYED WORKERS */}
+                      <td>
+                        <div className="site-crew-cell">
+                          {proj.workers.length > 0 ? (
+                            <div className="crew-avatars-stack" title={proj.workers.map((w) => w.name).join(', ')}>
+                              {proj.workers.slice(0, 3).map((w) => (
+                                <div key={w.id} className="crew-avatar-mini" title={w.name}>
+                                  {w.name.charAt(0)}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No workers</span>
+                          )}
+
+                          <button
+                            className="btn-manage-crew-pill"
+                            onClick={() => setManagingProject(proj)}
+                            title="Add or remove technicians for this job site"
+                          >
+                            <HardHat size={12} />
+                            {proj.workers.length} {proj.workers.length === 1 ? 'Worker' : 'Workers'}
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* TIMELINE */}
+                      <td>
+                        <div className="text-xs text-slate-600 flex flex-col gap-0.5">
+                          <span>
+                            <strong className="text-slate-400 font-normal">Start:</strong> {proj.startDate}
+                          </span>
+                          <span>
+                            <strong className="text-slate-400 font-normal">Due:</strong> {proj.dueDate}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* STATUS */}
+                      <td>
+                        <span
+                          className={`project-status-pill ${
+                            proj.status === 'In Progress'
+                              ? 'in-progress'
+                              : proj.status === 'Completed'
+                              ? 'completed'
+                              : proj.status === 'Planning'
+                              ? 'planning'
+                              : 'on-hold'
+                          }`}
+                        >
+                          {proj.status}
+                        </span>
+                      </td>
+
+                      {/* ACTIONS */}
+                      <td>
+                        <div className="project-row-actions">
+                          <button
+                            className="btn-row-action"
+                            onClick={() => handleOpenIssueModal(proj.dbId)}
+                            title="Issue material to this site"
+                          >
+                            <Package size={13} /> Issue Material
+                          </button>
+                          <button
+                            className="btn-row-action"
+                            onClick={() => setManagingProject(proj)}
+                            title="Manage site crew"
+                          >
+                            <HardHat size={13} /> Crew
+                          </button>
+                          <button
+                            className="btn-row-action delete"
+                            onClick={() => handleDeleteProject(proj.dbId, proj.name)}
+                            title="Delete project"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* TAB 2: MATERIAL ALLOCATIONS & AUDIT TRAIL */}
+      {activeTab === 'allocations' && (
+        <MaterialAllocationsTable onRefreshNeeded={fetchProjects} />
+      )}
+
+      {/* MANAGE SITE WORKERS MODAL */}
+      <ManageSiteWorkersModal
+        isOpen={managingProject !== null}
+        onClose={() => setManagingProject(null)}
+        project={managingProject}
+        availableWorkers={availableWorkers}
+        onSave={handleSaveSiteCrew}
+      />
 
       {/* ISSUE MATERIAL MODAL */}
       <IssueMaterialModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+        isOpen={isIssueModalOpen}
+        onClose={() => setIsIssueModalOpen(false)}
+        projects={apiProjects}
         defaultProjectId={modalProjectId}
-        onMaterialLogged={handleMaterialLogged}
+        onSuccess={handleMaterialSuccess}
       />
     </div>
   );

@@ -340,6 +340,76 @@
   border-color: #0f172a;
 }
 
+/* Custom Variant & Non-variant Styles */
+.btn-add-custom-variant {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all 0.15s ease;
+}
+
+.btn-add-custom-variant:hover {
+  background: #f1f5f9;
+  border-color: #0f172a;
+}
+
+.single-product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .single-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.single-product-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.single-product-field label {
+  font-size: 0.785rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.btn-remove-row {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-remove-row:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
 /* Form Actions Row */
 .bottom-actions-row {
   display: flex;

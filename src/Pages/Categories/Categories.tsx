@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import './Styles/Categories.css';
 import { categoriesApi } from '../../api/categoriesApi';
-import type { CategoryItem as ApiCategoryItem } from '../../api/categoriesApi';
+import type { CategoryItem as ApiCategoryItem, VariantConfig } from '../../api/categoriesApi';
 import { generateUniqueId } from '../../utils/idGenerator';
 
 export interface CategoryItem {
@@ -24,6 +24,7 @@ export interface CategoryItem {
   parentId: string | null;
   description?: string;
   defaultUom?: string;
+  variantConfig?: VariantConfig | null;
   productCount: number;
 }
 
@@ -96,6 +97,12 @@ export const Categories: React.FC = () => {
   const [parentId, setParentId] = useState<string>("");
   const [description, setDescription] = useState("");
   const [defaultUom, setDefaultUom] = useState("Pieces");
+  const [hasVariants, setHasVariants] = useState(true);
+  const [attributeName, setAttributeName] = useState("Size / Dimension");
+  const [packageUom, setPackageUom] = useState("");
+  const [packageRatio, setPackageRatio] = useState<number>(1);
+  const [presetTags, setPresetTags] = useState<string[]>([]);
+  const [newPresetText, setNewPresetText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [guardWarning, setGuardWarning] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -113,6 +120,7 @@ export const Categories: React.FC = () => {
           parentId: c.parent_id ? String(c.parent_id) : null,
           description: c.description || "",
           defaultUom: c.default_uom || "Pieces",
+          variantConfig: c.effective_variant_config || c.variant_config || null,
           productCount: c.products_count ?? 0,
         }));
         setCategories(mapped);
@@ -136,6 +144,7 @@ export const Categories: React.FC = () => {
           parentId: c.parent_id ? String(c.parent_id) : null,
           description: c.description || "",
           defaultUom: c.default_uom || "Pieces",
+          variantConfig: c.effective_variant_config || c.variant_config || null,
           productCount: c.products_count ?? 0,
         }));
         setCategories(mapped);
@@ -230,6 +239,16 @@ export const Categories: React.FC = () => {
       parent_id: parentId ? Number(parentId) : null,
       description: description.trim(),
       default_uom: defaultUom,
+      variant_config: {
+        has_variants: hasVariants,
+        attribute_name: hasVariants ? attributeName.trim() : null,
+        base_uom: defaultUom,
+        package_uom: packageUom.trim() || null,
+        package_ratio: Number(packageRatio) || 1,
+        presets: hasVariants
+          ? presetTags.map((t) => ({ label: t, sku_suffix: t.replace(/[^A-Za-z0-9]/g, "") }))
+          : [],
+      },
     };
 
     try {
@@ -277,6 +296,15 @@ export const Categories: React.FC = () => {
     setParentId(cat.parentId || "");
     setDescription(cat.description || "");
     setDefaultUom(cat.defaultUom || "Pieces");
+
+    const cfg = cat.variantConfig;
+    setHasVariants(cfg ? cfg.has_variants !== false : true);
+    setAttributeName(cfg?.attribute_name || "Size / Dimension");
+    setPackageUom(cfg?.package_uom || "");
+    setPackageRatio(cfg?.package_ratio || 1);
+    setPresetTags(cfg?.presets ? cfg.presets.map((p) => p.label) : []);
+    setNewPresetText("");
+
     setFormError(null);
     setGuardWarning(null);
     setSuccessMsg(null);
@@ -320,6 +348,12 @@ export const Categories: React.FC = () => {
     setParentId("");
     setDescription("");
     setDefaultUom("Pieces");
+    setHasVariants(true);
+    setAttributeName("Size / Dimension");
+    setPackageUom("");
+    setPackageRatio(1);
+    setPresetTags([]);
+    setNewPresetText("");
     setFormError(null);
   };
 
@@ -453,6 +487,118 @@ export const Categories: React.FC = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
+            </div>
+
+            {/* VARIANT CONFIGURATION BUILDER */}
+            <div className="category-presets-section">
+              <div className="category-presets-header">
+                <h4>Variant Presets & Packaging</h4>
+              </div>
+
+              <div className="form-group">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-xs">
+                  <input
+                    type="checkbox"
+                    checked={hasVariants}
+                    onChange={(e) => setHasVariants(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span>Category has variant sizes / specifications</span>
+                </label>
+              </div>
+
+              {hasVariants && (
+                <>
+                  <div className="form-group">
+                    <label>Variant Attribute Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Outer Diameter, Gas Type, Thickness"
+                      value={attributeName}
+                      onChange={(e) => setAttributeName(e.target.value)}
+                    />
+                    <p className="hint">Label shown in product creation (e.g. 'Select Gas Types').</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Pkg Unit (Optional)</label>
+                      <input
+                        type="text"
+                        className="form-input text-xs"
+                        placeholder="Coils, Cylinders..."
+                        value={packageUom}
+                        onChange={(e) => setPackageUom(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Pkg Ratio</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        className="form-input text-xs"
+                        placeholder="15.00"
+                        value={packageRatio}
+                        onChange={(e) => setPackageRatio(parseFloat(e.target.value) || 1)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>1-Click Quick Presets for this Category</label>
+                    <div className="presets-tags-container">
+                      {presetTags.map((tag) => (
+                        <span key={tag} className="preset-chip-tag">
+                          {tag}
+                          <button
+                            type="button"
+                            className="preset-tag-remove"
+                            onClick={() => setPresetTags((prev) => prev.filter((t) => t !== tag))}
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                      {presetTags.length === 0 && (
+                        <span className="text-xs text-slate-400 italic">No presets yet. Type below to add.</span>
+                      )}
+                    </div>
+
+                    <div className="add-preset-row">
+                      <input
+                        type="text"
+                        className="add-preset-input"
+                        placeholder="e.g. 1/4&quot;, R-410A, 13mm..."
+                        value={newPresetText}
+                        onChange={(e) => setNewPresetText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newPresetText.trim() && !presetTags.includes(newPresetText.trim())) {
+                              setPresetTags((prev) => [...prev, newPresetText.trim()]);
+                              setNewPresetText('');
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-add-preset-chip"
+                        onClick={() => {
+                          if (newPresetText.trim() && !presetTags.includes(newPresetText.trim())) {
+                            setPresetTags((prev) => [...prev, newPresetText.trim()]);
+                            setNewPresetText('');
+                          }
+                        }}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="form-actions">

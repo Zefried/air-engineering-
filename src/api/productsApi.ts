@@ -2,11 +2,14 @@ import api from "./axios";
 
 export interface ProductVariantPayload {
     id?: number;
-    size_label: string;
+    size_label?: string;
+    variant_name?: string;
     sku?: string;
     stock: number;
     min_threshold: number;
     unit_cost: number;
+    package_uom?: string;
+    package_ratio?: number;
     is_active?: boolean;
 }
 
@@ -28,10 +31,15 @@ export interface ProductVariantResponse {
     id: number;
     product_id: number;
     size_label: string;
+    variant_name?: string;
     sku: string;
     stock: string | number;
     min_threshold: string | number;
     unit_cost: string | number;
+    package_uom?: string | null;
+    package_ratio?: string | number | null;
+    effective_package_ratio?: number;
+    effective_package_uom?: string;
     is_active: boolean;
 }
 

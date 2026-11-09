@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   Package,
   Info,
   Check,
   Layers,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import './Styles/AddProduct.css';
 import { generateUniqueId } from '../../utils/idGenerator';
 import { categoriesApi } from '../../api/categoriesApi';
-import type { CategoryItem } from '../../api/categoriesApi';
+import type { CategoryItem, VariantConfigPreset } from '../../api/categoriesApi';
 import { productsApi } from '../../api/productsApi';
 import type { ProductPayload } from '../../api/productsApi';
 
@@ -23,17 +25,9 @@ interface VariantRow {
   initialStock: number;
   minAlertLevel: number;
   unitCost: number;
+  packageRatio?: number;
+  isCustom?: boolean;
 }
-
-const ALL_COPPER_SIZES = [
-  { key: "1/4", label: "1/4\" (6.35 mm)", defaultSku: "CP-014", cost: 780, stock: 45.0 },
-  { key: "3/8", label: "3/8\" (9.52 mm)", defaultSku: "CP-038", cost: 1050, stock: 32.5 },
-  { key: "1/2", label: "1/2\" (12.70 mm)", defaultSku: "CP-012", cost: 1440, stock: 18.0 },
-  { key: "5/8", label: "5/8\" (15.88 mm)", defaultSku: "CP-058", cost: 1950, stock: 4.0 },
-  { key: "3/4", label: "3/4\" (19.05 mm)", defaultSku: "CP-034", cost: 2450, stock: 0.0 },
-  { key: "7/8", label: "7/8\" (22.20 mm)", defaultSku: "CP-078", cost: 2950, stock: 0.0 },
-  { key: "1-1/8", label: "1-1/8\" (28.60 mm)", defaultSku: "CP-118", cost: 3600, stock: 0.0 },
-];
 
 export const AddProduct: React.FC = () => {
   const navigate = useNavigate();
@@ -45,57 +39,26 @@ export const AddProduct: React.FC = () => {
   // Basic Details
   const [categoryId, setCategoryId] = useState<number | string>("");
   const [subCategoryId, setSubCategoryId] = useState<number | string>("");
-  const [productName, setProductName] = useState("VRF Seamless Copper Tube (Grade A)");
-  const [brand, setBrand] = useState("Mandev / Indigo");
-  const [modelNo] = useState("ASTM-B280");
+  const [productName, setProductName] = useState("");
+  const [brand, setBrand] = useState("");
+  const [modelNo] = useState("");
 
   // Unit & Packaging
   const [baseUom, setBaseUom] = useState("Meters");
-  const [packageUom] = useState("Coils");
-  const [packageRatio] = useState<number>(15.0);
+  const [packageUom, setPackageUom] = useState("Coils");
+  const [packageRatio, setPackageRatio] = useState<number>(15.0);
 
-  // Size Matrix Toggle
+  // Variant Matrix Toggle
   const [enableSizeMatrix, setEnableSizeMatrix] = useState(true);
 
-  // Variant Rows - Preloaded matching the design mockup (first 4 selected)
-  const [variants, setVariants] = useState<VariantRow[]>([
-    {
-      id: "v-1",
-      sizeKey: "1/4",
-      sizeName: "1/4\" (6.35 mm)",
-      skuCode: "CP-014",
-      initialStock: 45.0,
-      minAlertLevel: 5.0,
-      unitCost: 780.0,
-    },
-    {
-      id: "v-2",
-      sizeKey: "3/8",
-      sizeName: "3/8\" (9.52 mm)",
-      skuCode: "CP-038",
-      initialStock: 32.5,
-      minAlertLevel: 5.0,
-      unitCost: 1050.0,
-    },
-    {
-      id: "v-3",
-      sizeKey: "1/2",
-      sizeName: "1/2\" (12.70 mm)",
-      skuCode: "CP-012",
-      initialStock: 18.0,
-      minAlertLevel: 5.0,
-      unitCost: 1440.0,
-    },
-    {
-      id: "v-4",
-      sizeKey: "5/8",
-      sizeName: "5/8\" (15.88 mm)",
-      skuCode: "CP-058",
-      initialStock: 4.0,
-      minAlertLevel: 5.0,
-      unitCost: 1950.0,
-    },
-  ]);
+  // Variant Rows
+  const [variants, setVariants] = useState<VariantRow[]>([]);
+
+  // Single Product Fields (When enableSizeMatrix is false)
+  const [singleSku, setSingleSku] = useState("");
+  const [singleStock, setSingleStock] = useState<number>(0);
+  const [singleMinThreshold, setSingleMinThreshold] = useState<number>(5.0);
+  const [singleUnitCost, setSingleUnitCost] = useState<number>(0);
 
   const [isSaved, setIsSaved] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,11 +70,13 @@ export const AddProduct: React.FC = () => {
       try {
         const res = await categoriesApi.getAll();
         if (res.status && res.data) {
-          setCategoriesTree(res.data.tree || []);
-          setFlatCategories(res.data.flat || []);
+          const tree = res.data.tree || [];
+          const flat = res.data.flat || [];
+          setCategoriesTree(tree);
+          setFlatCategories(flat);
 
-          if (res.data.tree && res.data.tree.length > 0) {
-            const firstParent = res.data.tree[0];
+          if (tree.length > 0) {
+            const firstParent = tree[0];
             setCategoryId(firstParent.id);
             if (firstParent.children && firstParent.children.length > 0) {
               setSubCategoryId(firstParent.children[0].id);
@@ -119,35 +84,119 @@ export const AddProduct: React.FC = () => {
           }
         }
       } catch (err) {
-        console.warn("Categories fetch fallback:", err);
+        console.warn("Categories fetch error:", err);
       }
     };
     fetchCats();
   }, []);
 
-  // Filter subcategories based on chosen parent category
-  const availableSubCategories = flatCategories.filter(
-    (c) => c.parent_id !== null && String(c.parent_id) === String(categoryId)
-  );
+  // Selected Category and Subcategory Objects
+  const selectedParentCategory = useMemo(() => {
+    return flatCategories.find((c) => String(c.id) === String(categoryId));
+  }, [flatCategories, categoryId]);
+
+  const selectedSubCategory = useMemo(() => {
+    return flatCategories.find((c) => String(c.id) === String(subCategoryId));
+  }, [flatCategories, subCategoryId]);
+
+  // Available subcategories for chosen parent
+  const availableSubCategories = useMemo(() => {
+    return flatCategories.filter(
+      (c) => c.parent_id !== null && String(c.parent_id) === String(categoryId)
+    );
+  }, [flatCategories, categoryId]);
+
+  // Effective Active Category (Subcategory takes precedence, falls back to parent)
+  const activeCategory = selectedSubCategory || selectedParentCategory;
+
+  // Effective Variant Configuration (Inherited or overridden)
+  const effectiveConfig = useMemo(() => {
+    if (!activeCategory) return null;
+    return activeCategory.effective_variant_config || activeCategory.variant_config || selectedParentCategory?.variant_config || null;
+  }, [activeCategory, selectedParentCategory]);
+
+  // Attribute label (e.g. "Outer Diameter" vs "Gas Type" vs "Wall Thickness")
+  const attributeLabel = effectiveConfig?.attribute_name || "Size / Spec";
+
+  // Chip Presets for active category
+  const chipPresets: VariantConfigPreset[] = useMemo(() => {
+    return effectiveConfig?.presets || [];
+  }, [effectiveConfig]);
+
+  // Auto-adapt form defaults when active category changes
+  useEffect(() => {
+    if (effectiveConfig) {
+      if (effectiveConfig.base_uom) setBaseUom(effectiveConfig.base_uom);
+      if (effectiveConfig.package_uom) setPackageUom(effectiveConfig.package_uom);
+      if (effectiveConfig.package_ratio) setPackageRatio(effectiveConfig.package_ratio);
+
+      if (effectiveConfig.has_variants === false) {
+        setEnableSizeMatrix(false);
+        setVariants([]);
+      } else {
+        setEnableSizeMatrix(true);
+        // Pre-select the first 3 presets if available
+        if (effectiveConfig.presets && effectiveConfig.presets.length > 0) {
+          const initial = effectiveConfig.presets.slice(0, 3).map((p, idx) => ({
+            id: `v-${idx + 1}`,
+            sizeKey: p.label,
+            sizeName: p.label,
+            skuCode: p.sku_suffix ? `SKU-${p.sku_suffix}` : `SKU-00${idx + 1}`,
+            initialStock: 10.0,
+            minAlertLevel: 5.0,
+            unitCost: p.default_cost || 0,
+            packageRatio: p.package_ratio || effectiveConfig.package_ratio || 1.0,
+            isCustom: false,
+          }));
+          setVariants(initial);
+        }
+      }
+    } else if (activeCategory) {
+      if (activeCategory.default_uom) setBaseUom(activeCategory.default_uom);
+    }
+  }, [categoryId, subCategoryId]);
 
   // Toggle size chip
-  const handleToggleSizeChip = (sizeObj: (typeof ALL_COPPER_SIZES)[0]) => {
-    const exists = variants.some((v) => v.sizeKey === sizeObj.key);
+  const handleToggleSizeChip = (preset: VariantConfigPreset) => {
+    const exists = variants.some((v) => v.sizeKey === preset.label);
 
     if (exists) {
-      setVariants((prev) => prev.filter((v) => v.sizeKey !== sizeObj.key));
+      setVariants((prev) => prev.filter((v) => v.sizeKey !== preset.label));
     } else {
       const newRow: VariantRow = {
         id: generateUniqueId("v"),
-        sizeKey: sizeObj.key,
-        sizeName: sizeObj.label,
-        skuCode: sizeObj.defaultSku,
-        initialStock: sizeObj.stock,
-        minAlertLevel: 5.0, // Default 5.00 min threshold alert
-        unitCost: sizeObj.cost,
+        sizeKey: preset.label,
+        sizeName: preset.label,
+        skuCode: preset.sku_suffix ? `SKU-${preset.sku_suffix}` : generateUniqueId("SKU"),
+        initialStock: 10.0,
+        minAlertLevel: 5.0,
+        unitCost: preset.default_cost || 0,
+        packageRatio: preset.package_ratio || packageRatio || 1.0,
+        isCustom: false,
       };
       setVariants((prev) => [...prev, newRow]);
     }
+  };
+
+  // Add custom variant row
+  const handleAddCustomVariant = () => {
+    const customCount = variants.filter((v) => v.isCustom).length + 1;
+    const newRow: VariantRow = {
+      id: generateUniqueId("v-custom"),
+      sizeKey: `Custom-${customCount}`,
+      sizeName: "",
+      skuCode: `SKU-CST-${customCount}`,
+      initialStock: 0,
+      minAlertLevel: 5.0,
+      unitCost: 0,
+      packageRatio: packageRatio || 1.0,
+      isCustom: true,
+    };
+    setVariants((prev) => [...prev, newRow]);
+  };
+
+  const handleRemoveVariant = (id: string) => {
+    setVariants((prev) => prev.filter((v) => v.id !== id));
   };
 
   const handleRowChange = (id: string, field: keyof VariantRow, value: string | number) => {
@@ -165,12 +214,11 @@ export const AddProduct: React.FC = () => {
       return;
     }
 
-    // Determine category IDs (fallback to first available or 1 if empty)
-    const effectiveCategoryId = categoryId || (categoriesTree.length > 0 ? categoriesTree[0].id : 1);
+    const effectiveCatId = categoryId || (categoriesTree.length > 0 ? categoriesTree[0].id : 1);
 
     const payload: ProductPayload = {
       name: productName.trim(),
-      category_id: effectiveCategoryId,
+      category_id: effectiveCatId,
       sub_category_id: subCategoryId ? subCategoryId : null,
       brand: brand.trim() || undefined,
       model_no: modelNo.trim() || undefined,
@@ -180,19 +228,25 @@ export const AddProduct: React.FC = () => {
       has_variants: enableSizeMatrix,
       variants: enableSizeMatrix && variants.length > 0
         ? variants.map((v) => ({
-            size_label: v.sizeName,
+            size_label: v.sizeName || v.sizeKey,
+            variant_name: v.sizeName || v.sizeKey,
             sku: v.skuCode,
             stock: Number(v.initialStock) || 0,
             min_threshold: Number(v.minAlertLevel) || 5.0,
             unit_cost: Number(v.unitCost) || 0,
+            package_uom: packageUom || undefined,
+            package_ratio: v.packageRatio ? Number(v.packageRatio) : undefined,
           }))
         : [
             {
               size_label: "Standard",
-              sku: "PRD-STD",
-              stock: 0,
-              min_threshold: 5.0,
-              unit_cost: 0,
+              variant_name: "Standard",
+              sku: singleSku.trim() || `SKU-${Date.now().toString().slice(-4)}`,
+              stock: Number(singleStock) || 0,
+              min_threshold: Number(singleMinThreshold) || 5.0,
+              unit_cost: Number(singleUnitCost) || 0,
+              package_uom: packageUom || undefined,
+              package_ratio: packageRatio || undefined,
             },
           ],
     };
@@ -205,14 +259,9 @@ export const AddProduct: React.FC = () => {
         navigate("/dashboard/products");
       }, 700);
     } catch (err: unknown) {
-      console.warn("Backend API error on create, fallback handling:", err);
+      console.warn("Backend API error on create:", err);
       const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setErrorMessage(apiMsg || "Failed to save to server database. Please verify backend is running.");
-      // Allow proceeding
-      setIsSaved(true);
-      setTimeout(() => {
-        navigate("/dashboard/products");
-      }, 1200);
+      setErrorMessage(apiMsg || "Failed to save product to database.");
     } finally {
       setIsSubmitting(false);
     }
@@ -231,8 +280,10 @@ export const AddProduct: React.FC = () => {
           <Package size={26} />
         </div>
         <div className="header-text-group">
-          <h1>Add HVAC Product & Sizes</h1>
-          <p>Create a product, set its unit and add size variants (e.g. 1/4", 3/8", 1/2") in one go.</p>
+          <h1>Add HVAC Product & Inventory</h1>
+          <p>
+            Configure product details, category, unit, packaging, and dynamic variants ({attributeLabel}).
+          </p>
         </div>
       </div>
 
@@ -246,7 +297,7 @@ export const AddProduct: React.FC = () => {
       {isSaved && (
         <div className="p-4 mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center gap-2">
           <Check size={18} className="text-emerald-600" />
-          Product and size variants saved successfully! Redirecting...
+          Product and variants saved successfully! Redirecting...
         </div>
       )}
 
@@ -254,8 +305,8 @@ export const AddProduct: React.FC = () => {
         {/* CARD 1: BASIC DETAILS */}
         <div className="form-section-card">
           <div className="section-label-col">
-            <h2>1. Basic Details</h2>
-            <p>Tell us what product you're adding.</p>
+            <h2>1. Category & Product Info</h2>
+            <p>Select category to load specialized unit & variant presets automatically.</p>
           </div>
 
           <div className="section-fields-col">
@@ -267,22 +318,20 @@ export const AddProduct: React.FC = () => {
                   value={categoryId}
                   onChange={(e) => {
                     setCategoryId(e.target.value);
-                    setSubCategoryId("");
+                    const chosen = categoriesTree.find((c) => String(c.id) === String(e.target.value));
+                    if (chosen && chosen.children && chosen.children.length > 0) {
+                      setSubCategoryId(chosen.children[0].id);
+                    } else {
+                      setSubCategoryId("");
+                    }
                   }}
+                  required
                 >
-                  {categoriesTree.length > 0 ? (
-                    categoriesTree.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="1">Ducting & Piping Materials</option>
-                      <option value="4">Consumables & Gases</option>
-                      <option value="9">HVAC Equipment & Units</option>
-                    </>
-                  )}
+                  {categoriesTree.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -299,13 +348,6 @@ export const AddProduct: React.FC = () => {
                       {sub.name}
                     </option>
                   ))}
-                  {availableSubCategories.length === 0 && (
-                    <>
-                      <option value="2">Copper Pipes & Tubes</option>
-                      <option value="7">Thermal Pipe Insulation</option>
-                      <option value="3">PVC Drain Pipes</option>
-                    </>
-                  )}
                 </select>
               </div>
             </div>
@@ -316,7 +358,7 @@ export const AddProduct: React.FC = () => {
                 <input
                   type="text"
                   className="custom-input"
-                  placeholder="e.g. VRF Seamless Copper Tube (Grade A)"
+                  placeholder="e.g. VRF Seamless Copper Tube or R-410A Refrigerant"
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   required
@@ -324,14 +366,13 @@ export const AddProduct: React.FC = () => {
               </div>
 
               <div className="field-item">
-                <label>Brand / Make *</label>
+                <label>Brand / Manufacturer</label>
                 <input
                   type="text"
                   className="custom-input"
-                  placeholder="e.g. Mandev / Indigo"
+                  placeholder="e.g. Mandev, Chemours, Astral, Honeywell"
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  required
                 />
               </div>
             </div>
@@ -343,8 +384,7 @@ export const AddProduct: React.FC = () => {
           <div className="section-label-col">
             <h2>2. Unit & Packaging</h2>
             <p>
-              Set the base unit and packaging details. Stock will be tracked in {baseUom.toLowerCase()} with
-              decimal support.
+              Stock is strictly tracked in <strong>{baseUom}</strong>. Packaging is a conversion reference for warehousing.
             </p>
           </div>
 
@@ -352,25 +392,24 @@ export const AddProduct: React.FC = () => {
             <div className="unit-info-banner">
               <Info size={18} className="shrink-0 text-blue-600" />
               <span>
-                <strong>Base Unit: {baseUom}.</strong> All site cutting will automatically deduct in decimals
-                (e.g. 3.50m) without manual conversion.
+                <strong>Authoritative Base Unit: {baseUom}.</strong> All site dispatches and cuts deduct in decimals without conversion rounding errors.
               </span>
             </div>
 
             <div className="fields-row-2col items-center">
               <div className="field-item">
-                <label>Base Unit *</label>
+                <label>Base Inventory Unit *</label>
                 <select
                   className="custom-select"
                   value={baseUom}
                   onChange={(e) => setBaseUom(e.target.value)}
                 >
-                  <option value="Meters">Meters</option>
-                  <option value="Kg">Kg</option>
-                  <option value="Pieces">Pieces</option>
-                  <option value="Sq.Ft">Sq.Ft</option>
-                  <option value="Sets">Sets</option>
-                  <option value="Rolls">Rolls</option>
+                  <option value="Meters">Meters (Piping, Insulation, Cables)</option>
+                  <option value="Kg">Kg (Refrigerant Gases, Chemicals)</option>
+                  <option value="Pieces">Pieces (Valves, Thermostats, Breakers)</option>
+                  <option value="Sq.Ft">Sq.Ft (Duct Sheet, Underdeck Insulation)</option>
+                  <option value="Sets">Sets (Refnet Kits, Flange Sets)</option>
+                  <option value="Rolls">Rolls (Foil Tapes, Acoustic Foam)</option>
                 </select>
               </div>
 
@@ -378,24 +417,50 @@ export const AddProduct: React.FC = () => {
                 <div className="packaging-reference-box">
                   <Layers size={22} className="pkg-icon" />
                   <div>
-                    <p className="pkg-label">Packaging (Reference)</p>
+                    <p className="pkg-label">Default Packaging Reference</p>
                     <p className="pkg-value">
-                      1 {packageUom || "Coil"} = {packageRatio || 15} {baseUom}
+                      1 {packageUom || "Package"} = {packageRatio || 1} {baseUom}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
+
+            <div className="fields-row-2col mt-3">
+              <div className="field-item">
+                <label>Packaging Container Label</label>
+                <input
+                  type="text"
+                  className="custom-input"
+                  placeholder="e.g. Coil, Cylinder, Box, Bundle, Drum"
+                  value={packageUom}
+                  onChange={(e) => setPackageUom(e.target.value)}
+                />
+              </div>
+
+              <div className="field-item">
+                <label>Conversion Ratio ({baseUom} per {packageUom || 'Package'})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="custom-input"
+                  value={packageRatio}
+                  onChange={(e) => setPackageRatio(parseFloat(e.target.value) || 1)}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* CARD 3: SIZE MATRIX (VARIANTS) */}
+        {/* CARD 3: VARIANT MATRIX OR SINGLE PRODUCT */}
         <div className="form-section-card">
           <div className="section-label-col">
-            <h2>3. Size Matrix (Variants)</h2>
+            <h2>3. {enableSizeMatrix ? `Variant Matrix (${attributeLabel})` : 'Single Product Inventory'}</h2>
             <p>
-              Add size variants for this product. Select common sizes below and enter stock, alert level and
-              cost.
+              {enableSizeMatrix
+                ? `Add variations based on ${attributeLabel.toLowerCase()}. Stock and pricing are tracked independently per variant.`
+                : 'This product has a single specification. Enter standard stock and alert thresholds below.'}
             </p>
           </div>
 
@@ -410,32 +475,80 @@ export const AddProduct: React.FC = () => {
                 <div className="toggle-knob" />
               </button>
               <span className="toggle-label-text">
-                Enable Size Matrix ({enableSizeMatrix ? "Yes" : "No"})
+                Has Multiple Variants / Sizes ({enableSizeMatrix ? "Yes" : "No"})
               </span>
             </div>
 
-            {enableSizeMatrix && (
-              <>
-                {/* 1-CLICK SIZE CHIPS */}
-                <div>
-                  <div className="chips-section-title">Select Sizes (1-Click)</div>
-                  <div className="preset-chips-cluster">
-                    {ALL_COPPER_SIZES.map((sizeObj) => {
-                      const isSelected = variants.some((v) => v.sizeKey === sizeObj.key);
-                      return (
-                        <button
-                          key={sizeObj.key}
-                          type="button"
-                          onClick={() => handleToggleSizeChip(sizeObj)}
-                          className={`size-pill-chip ${isSelected ? "selected" : ""}`}
-                        >
-                          {isSelected && <Check size={14} />}
-                          {sizeObj.key}"
-                        </button>
-                      );
-                    })}
-                  </div>
+            {/* IF SINGLE PRODUCT */}
+            {!enableSizeMatrix ? (
+              <div className="single-product-grid">
+                <div className="single-product-field">
+                  <label>SKU Code</label>
+                  <input
+                    type="text"
+                    className="custom-input font-mono"
+                    placeholder="e.g. TH-6861"
+                    value={singleSku}
+                    onChange={(e) => setSingleSku(e.target.value)}
+                  />
                 </div>
+                <div className="single-product-field">
+                  <label>Opening Stock ({baseUom})</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="custom-input"
+                    value={singleStock}
+                    onChange={(e) => setSingleStock(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="single-product-field">
+                  <label>Min Alert ({baseUom})</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="custom-input"
+                    value={singleMinThreshold}
+                    onChange={(e) => setSingleMinThreshold(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="single-product-field">
+                  <label>Unit Cost (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="custom-input"
+                    value={singleUnitCost}
+                    onChange={(e) => setSingleUnitCost(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* 1-CLICK DYNAMIC PRESET CHIPS */}
+                {chipPresets.length > 0 && (
+                  <div className="mb-4">
+                    <div className="chips-section-title">
+                      Select {attributeLabel} (1-Click Presets from Category):
+                    </div>
+                    <div className="preset-chips-cluster">
+                      {chipPresets.map((preset) => {
+                        const isSelected = variants.some((v) => v.sizeKey === preset.label);
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleToggleSizeChip(preset)}
+                            className={`size-pill-chip ${isSelected ? "selected" : ""}`}
+                          >
+                            {isSelected && <Check size={14} />}
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* SIZES TABLE */}
                 <div className="variant-matrix-card">
@@ -443,57 +556,118 @@ export const AddProduct: React.FC = () => {
                     <table className="matrix-table">
                       <thead>
                         <tr>
-                          <th>Size Name</th>
+                          <th>{attributeLabel} / Specification</th>
                           <th>SKU Code</th>
-                          <th>Initial Stock ({baseUom})</th>
-                          <th>Min Alert Level ({baseUom})</th>
+                          <th>Stock ({baseUom})</th>
+                          <th>Min Alert ({baseUom})</th>
                           <th>Unit Cost (₹)</th>
+                          <th>Pkg Ratio ({baseUom}/{packageUom || 'Pkg'})</th>
+                          <th style={{ width: '40px' }}></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {variants.map((v) => (
-                          <tr key={v.id}>
-                            <td className="cell-size-name">{v.sizeName}</td>
-                            <td className="cell-sku-text">{v.skuCode}</td>
-                            <td>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="table-input-field"
-                                value={v.initialStock}
-                                onChange={(e) =>
-                                  handleRowChange(v.id, "initialStock", parseFloat(e.target.value) || 0)
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="table-input-field"
-                                value={v.minAlertLevel}
-                                onChange={(e) =>
-                                  handleRowChange(v.id, "minAlertLevel", parseFloat(e.target.value) || 0)
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="table-input-field"
-                                value={v.unitCost}
-                                onChange={(e) =>
-                                  handleRowChange(v.id, "unitCost", parseFloat(e.target.value) || 0)
-                                }
-                              />
+                        {variants.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="text-center py-6 text-slate-400 italic">
+                              No variants selected. Click presets above or "+ Add Custom Variant" below.
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          variants.map((v) => (
+                            <tr key={v.id}>
+                              <td className="cell-size-name">
+                                {v.isCustom ? (
+                                  <input
+                                    type="text"
+                                    className="table-input-field"
+                                    placeholder="Enter custom size/spec..."
+                                    value={v.sizeName}
+                                    onChange={(e) => handleRowChange(v.id, "sizeName", e.target.value)}
+                                    required
+                                  />
+                                ) : (
+                                  v.sizeName
+                                )}
+                              </td>
+                              <td className="cell-sku-text">
+                                <input
+                                  type="text"
+                                  className="table-input-field font-mono"
+                                  value={v.skuCode}
+                                  onChange={(e) => handleRowChange(v.id, "skuCode", e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="table-input-field"
+                                  value={v.initialStock}
+                                  onChange={(e) =>
+                                    handleRowChange(v.id, "initialStock", parseFloat(e.target.value) || 0)
+                                  }
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="table-input-field"
+                                  value={v.minAlertLevel}
+                                  onChange={(e) =>
+                                    handleRowChange(v.id, "minAlertLevel", parseFloat(e.target.value) || 0)
+                                  }
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="table-input-field"
+                                  value={v.unitCost}
+                                  onChange={(e) =>
+                                    handleRowChange(v.id, "unitCost", parseFloat(e.target.value) || 0)
+                                  }
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="table-input-field"
+                                  placeholder={String(packageRatio)}
+                                  value={v.packageRatio || ""}
+                                  onChange={(e) =>
+                                    handleRowChange(v.id, "packageRatio", parseFloat(e.target.value) || 0)
+                                  }
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn-remove-row"
+                                  onClick={() => handleRemoveVariant(v.id)}
+                                  title="Remove variant"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
+
+                {/* ADD CUSTOM VARIANT BUTTON */}
+                <button
+                  type="button"
+                  onClick={handleAddCustomVariant}
+                  className="btn-add-custom-variant"
+                >
+                  <Plus size={14} /> + Add Custom Variant (Unlisted {attributeLabel})
+                </button>
               </>
             )}
           </div>
@@ -505,7 +679,7 @@ export const AddProduct: React.FC = () => {
             Cancel
           </Link>
           <button type="submit" className="btn-save-dark" disabled={isSubmitting}>
-            <Check size={16} /> {isSubmitting ? "Saving..." : "Save Product & Variants"}
+            <Check size={16} /> {isSubmitting ? "Saving..." : "Save Product & Inventory"}
           </button>
         </div>
       </form>

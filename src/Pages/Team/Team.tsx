@@ -166,20 +166,6 @@ export const Team: React.FC = () => {
     };
   }, [currentPage, perPage, search, activeTab]);
 
-  // Open Add Modal
-  const handleOpenAdd = () => {
-    setFormData({
-      name: "",
-      email: "",
-      role: "worker",
-      phone: "",
-      password: "password",
-    });
-    setEditingUser(null);
-    setFeedbackMsg(null);
-    setIsAddOpen(true);
-  };
-
   // Open Edit Modal
   const handleOpenEdit = (user: UserItem) => {
     setFormData({

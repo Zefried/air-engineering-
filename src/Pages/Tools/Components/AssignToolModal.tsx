@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Calendar, User, Briefcase, Clock, Layers, FileText, ChevronDown } from 'lucide-react';
+import { X, Check, Calendar, User, Briefcase, Clock, Layers, FileText, ChevronDown, AlertCircle } from 'lucide-react';
 import type { ToolItem, ToolCondition } from '../toolTypes';
 import { WORKERS_LIST, PROJECTS_LIST } from '../toolTypes';
 import { usersApi } from '../../../api/usersApi';
 import type { UserItem } from '../../../api/usersApi';
+import { projectsApi } from '../../../api/projectsApi';
+import type { ProjectItem, ProjectListResponse } from '../../../api/projectsApi';
 import './AssignToolModal.css';
 
 interface AssignToolModalProps {
@@ -17,7 +19,7 @@ interface AssignToolModalProps {
     expectedReturnDate: string;
     assignedCondition: ToolCondition;
     notes?: string;
-  }) => void;
+  }) => Promise<void> | void;
 }
 
 const formatDateFormatted = (date: Date) => {
@@ -37,8 +39,11 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
   const [workers, setWorkers] = useState<{ id: string; name: string; info: string }[]>(
     WORKERS_LIST.map(w => ({ id: w.id, name: w.name, info: `${w.trade} — ${w.id}` }))
   );
+  const [projectOptions, setProjectOptions] = useState<string[]>(() => {
+    return PROJECTS_LIST.map((p) => p.full);
+  });
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("");
-  const [projectName, setProjectName] = useState(PROJECTS_LIST[0].full);
+  const [projectName, setProjectName] = useState(() => projectOptions[0] || PROJECTS_LIST[0].full);
   const [assignedCondition, setAssignedCondition] = useState<ToolCondition>(tool.currentCondition || "Good");
   const [durationPreset, setDurationPreset] = useState<"1 Day" | "3 Days" | "1 Week" | "Custom">("1 Day");
   const [customReturnDate, setCustomReturnDate] = useState(() => {
@@ -47,8 +52,10 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
     return formatDateFormatted(d);
   });
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Load registered workers from backend
+  // Load registered workers and real projects from backend
   useEffect(() => {
     let isMounted = true;
     usersApi.getAll({ role: 'worker' })
@@ -71,6 +78,22 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
         if (isMounted) setSelectedWorkerId(WORKERS_LIST[0].id);
       });
 
+    projectsApi.getAll()
+      .then((res: ProjectListResponse) => {
+        if (!isMounted) return;
+        const projectList = res?.data || [];
+        if (projectList.length > 0) {
+          const mapped = projectList.map((p: ProjectItem) =>
+            p.site_location ? `${p.project_code} - ${p.name} (${p.site_location})` : `${p.project_code} - ${p.name}`
+          );
+          setProjectOptions(mapped);
+          setProjectName(mapped[0]);
+        }
+      })
+      .catch((err: unknown) => {
+        console.warn("Could not load backend projects, using fallbacks", err);
+      });
+
     return () => { isMounted = false; };
   }, []);
 
@@ -89,20 +112,32 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
     setCustomReturnDate(formatDateFormatted(d));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     const worker = workers.find((w) => w.id === selectedWorkerId) || workers[0];
-    if (!worker) return;
+    if (!worker) {
+      setErrorMessage("Please select a valid field worker.");
+      return;
+    }
 
-    onAssign(tool.id, {
-      workerId: worker.id,
-      workerName: worker.name,
-      projectName,
-      expectedReturnDate: customReturnDate,
-      assignedCondition,
-      notes: notes.trim() || undefined,
-    });
-    onClose();
+    try {
+      setIsSubmitting(true);
+      await onAssign(tool.id, {
+        workerId: worker.id,
+        workerName: worker.name,
+        projectName,
+        expectedReturnDate: customReturnDate,
+        assignedCondition,
+        notes: notes.trim() || undefined,
+      });
+      onClose();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to assign tool.";
+      setErrorMessage(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -125,6 +160,12 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
 
         {/* FORM */}
         <form onSubmit={handleSubmit} className="assign-modal-form">
+          {errorMessage && (
+            <div className="p-3 mb-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
+              <AlertCircle size={15} className="shrink-0 text-rose-600" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
           {/* ROW 1: WORKER SELECT */}
           <div className="assign-form-row">
             <label className="assign-row-label">
@@ -158,9 +199,9 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
                 onChange={(e) => setProjectName(e.target.value)}
                 required
               >
-                {PROJECTS_LIST.map((p) => (
-                  <option key={p.full} value={p.full}>
-                    {p.full}
+                {projectOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
                   </option>
                 ))}
               </select>
@@ -258,9 +299,10 @@ export const AssignToolModal: React.FC<AssignToolModalProps> = ({
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="btn-assign-submit"
             >
-              <Check size={16} /> Assign Tool
+              <Check size={16} /> {isSubmitting ? "Assigning..." : "Assign Tool"}
             </button>
           </div>
         </form>

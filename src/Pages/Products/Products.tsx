@@ -610,7 +610,7 @@ export const Products: React.FC = () => {
                               <table className="nested-sizes-table">
                                 <thead>
                                   <tr>
-                                    <th>Size (Diameter)</th>
+                                    <th>Variant / Specification</th>
                                     <th>SKU Code</th>
                                     <th>Stock</th>
                                     <th>Min Alert Level</th>

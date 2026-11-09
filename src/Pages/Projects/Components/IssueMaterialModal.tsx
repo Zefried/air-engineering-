@@ -1,37 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   X,
   Package,
-  AlertTriangle,
-  CheckCircle2,
+  Layers,
+  Tag,
+  Scale,
+  FileText,
+  UserCheck,
+  Check,
   RotateCcw,
   Plus,
-  Minus
+  Minus,
+  Briefcase,
+  AlertCircle,
+  TrendingDown,
+  TrendingUp,
+  ShieldCheck,
+  Trash2
 } from 'lucide-react';
-import { INITIAL_PRODUCTS } from '../../Products/productTypes';
-import type { ProductItem } from '../../Products/productTypes';
-import { generateUniqueId } from '../../../utils/idGenerator';
-
-export interface MaterialIssueRecord {
-  id: string;
-  projectId: string;
-  projectName: string;
-  productName: string;
-  sizeLabel: string;
-  quantity: number;
-  uom: string;
-  type: "issue" | "return";
-  loggedBy: string;
-  timestamp: string;
-  notes?: string;
-}
+import { AuthContext } from '../../../Context/AuthContextValue';
+import { productsApi } from '../../../api/productsApi';
+import type { ProductResponse, ProductVariantResponse } from '../../../api/productsApi';
+import { inventoryApi } from '../../../api/inventoryApi';
+import type { ProjectItem, ProjectWorker } from '../../../api/projectsApi';
+import '../Styles/IssueMaterialModal.css';
 
 interface IssueMaterialModalProps {
   isOpen: boolean;
   onClose: () => void;
-  projects: { id: string; name: string }[];
-  defaultProjectId?: string;
-  onMaterialLogged: (record: MaterialIssueRecord) => void;
+  projects: ProjectItem[];
+  defaultProjectId?: number;
+  onSuccess?: () => void;
 }
 
 export const IssueMaterialModal: React.FC<IssueMaterialModalProps> = ({
@@ -39,284 +38,475 @@ export const IssueMaterialModal: React.FC<IssueMaterialModalProps> = ({
   onClose,
   projects,
   defaultProjectId,
-  onMaterialLogged,
+  onSuccess,
 }) => {
-  const [projectId, setProjectId] = useState(defaultProjectId || projects[0]?.id || "");
-  const [transactionType, setTransactionType] = useState<"issue" | "return">("issue");
+  const auth = useContext(AuthContext);
 
-  // Material selection
-  const [selectedProductId, setSelectedProductId] = useState<string>("PRD-001");
-  const selectedProduct: ProductItem | undefined = INITIAL_PRODUCTS.find(
-    (p) => p.id === selectedProductId
+  // Modal mode state
+  const [mode, setMode] = useState<'issue' | 'return'>('issue');
+  const [returnSubtype, setReturnSubtype] = useState<'usable' | 'damaged'>('usable');
+
+  // Form selections
+  const [selectedProjectId, setSelectedProjectId] = useState<number | ''>(
+    defaultProjectId || (projects[0]?.id ?? '')
   );
 
-  const [selectedVariantId, setSelectedVariantId] = useState<string>("var-3"); // 1/2" copper
-  const selectedVariant = selectedProduct?.variants.find((v) => v.id === selectedVariantId);
+  // Products and variants loaded dynamically from DB
+  const [products, setProducts] = useState<ProductResponse[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(false);
+  const [selectedProductId, setSelectedProductId] = useState<number | ''>('');
+  const [selectedVariantId, setSelectedVariantId] = useState<number | ''>('');
 
-  // Quantity with decimal
-  const [quantity, setQuantity] = useState<number>(3.5);
-  const [notes, setNotes] = useState<string>("Refrigerant piping run for outdoor to AHU-1");
-  const [successMsg, setSuccessMsg] = useState(false);
+  // Quantity and Notes
+  const [quantity, setQuantity] = useState<number>(3.50);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<number | ''>('');
+  const [notes, setNotes] = useState<string>('');
+
+  // UI state
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Sync defaultProjectId when opened
+  useEffect(() => {
+    if (defaultProjectId) {
+      setSelectedProjectId(defaultProjectId);
+    } else if (projects.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [defaultProjectId, projects]);
+
+  // Load products from DB on mount
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        const res = await productsApi.getAll({ per_page: 100 });
+        const list = res?.data?.data || [];
+        setProducts(list);
+        if (list.length > 0 && !selectedProductId) {
+          setSelectedProductId(list[0].id);
+          if (list[0].variants && list[0].variants.length > 0) {
+            setSelectedVariantId(list[0].variants[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load products for material issuance:', err);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+    fetchProducts();
+  }, [isOpen]);
+
+  // When selected product changes, select its first variant
+  useEffect(() => {
+    if (!selectedProductId) return;
+    const prod = products.find((p) => p.id === Number(selectedProductId));
+    if (prod && prod.variants && prod.variants.length > 0) {
+      setSelectedVariantId(prod.variants[0].id);
+    } else {
+      setSelectedVariantId('');
+    }
+  }, [selectedProductId, products]);
+
+  // Current active project
+  const currentProject = projects.find((p) => p.id === Number(selectedProjectId));
+  const projectWorkers: ProjectWorker[] = currentProject?.workers || [];
+
+  // When project changes, select its first worker if available
+  useEffect(() => {
+    if (projectWorkers.length > 0) {
+      setSelectedWorkerId(projectWorkers[0].id);
+    } else {
+      setSelectedWorkerId('');
+    }
+  }, [selectedProjectId, currentProject]);
 
   if (!isOpen) return null;
 
-  const currentStock = selectedVariant?.stock ?? 0;
-  const isOverIssue = transactionType === "issue" && quantity > currentStock;
-  const remainingStock =
-    transactionType === "issue"
-      ? currentStock - quantity
-      : currentStock + quantity;
+  // Selected product & variant
+  const currentProduct = products.find((p) => p.id === Number(selectedProductId));
+  const currentVariant: ProductVariantResponse | undefined = currentProduct?.variants?.find(
+    (v) => v.id === Number(selectedVariantId)
+  );
+
+  const currentStock = currentVariant ? parseFloat(String(currentVariant.stock)) : 0;
+  const baseUom = currentProduct?.base_uom || 'Units';
+
+  // Compute stock deduction / addition
+  const isOverIssue = mode === 'issue' && quantity > currentStock;
+  const postStock = mode === 'issue'
+    ? Math.max(0, parseFloat((currentStock - quantity).toFixed(2)))
+    : returnSubtype === 'usable'
+      ? parseFloat((currentStock + quantity).toFixed(2))
+      : currentStock; // Damaged return doesn't change usable stock!
 
   const handleStep = (delta: number) => {
-    setQuantity((prev) => Math.max(0.1, parseFloat((prev + delta).toFixed(2))));
+    setQuantity((prev) => {
+      const next = parseFloat((prev + delta).toFixed(2));
+      return next < 0.1 ? 0.1 : next;
+    });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantity <= 0) return;
+    setFormError(null);
 
-    const currentProj = projects.find((p) => p.id === projectId);
+    if (!selectedVariantId) {
+      setFormError('Please select a valid material size / variant.');
+      return;
+    }
 
-    const record: MaterialIssueRecord = {
-      id: generateUniqueId("LOG"),
-      projectId,
-      projectName: currentProj?.name || "Unknown Project",
-      productName: selectedProduct?.name || "Material",
-      sizeLabel: selectedVariant?.sizeLabel || "",
-      quantity,
-      uom: selectedProduct?.baseUom || "Meters",
-      type: transactionType,
-      loggedBy: "Rahul (Site Supervisor)",
-      timestamp: "Just now",
-      notes: notes.trim(),
-    };
+    if (quantity <= 0) {
+      setFormError('Quantity must be greater than 0.');
+      return;
+    }
 
-    onMaterialLogged(record);
-    setSuccessMsg(true);
+    if (mode === 'issue' && isOverIssue) {
+      setFormError(`Insufficient stock. Available: ${currentStock.toFixed(2)} ${baseUom}.`);
+      return;
+    }
 
-    setTimeout(() => {
-      setSuccessMsg(false);
+    const type = mode === 'issue'
+      ? 'issue'
+      : returnSubtype === 'usable'
+        ? 'return_restock'
+        : 'return_damaged';
+
+    try {
+      setIsSubmitting(true);
+      await inventoryApi.recordTransaction({
+        project_id: selectedProjectId ? Number(selectedProjectId) : null,
+        product_variant_id: Number(selectedVariantId),
+        worker_id: selectedWorkerId ? Number(selectedWorkerId) : null,
+        type,
+        quantity,
+        notes: notes.trim() || undefined,
+      });
+
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
-    }, 800);
+    } catch (err: any) {
+      console.error('Error logging inventory transaction:', err);
+      const msg = err.response?.data?.message || err.response?.data?.errors?.quantity?.[0] || 'Failed to record transaction.';
+      setFormError(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 animate-in fade-in duration-200">
-        {/* HEADER */}
-        <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100 dark:border-gray-700">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Package size={22} className="text-blue-600" />
-              {transactionType === "issue" ? "Issue Material to Site" : "Return Material to Store"}
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Accurate fractional decimal deduction for project inventory
-            </p>
+    <div className="imm-overlay" onClick={onClose}>
+      <div className="imm-modal-container" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="imm-header">
+          <div className="imm-header-left">
+            <div className="imm-icon-badge">
+              <Package size={22} />
+            </div>
+            <div>
+              <h2 className="imm-title">
+                {mode === 'issue' ? 'Issue Material to Site' : 'Return Material from Site'}
+              </h2>
+              <p className="imm-subtitle">
+                {mode === 'issue'
+                  ? 'Deduct material from inventory for an active project job site.'
+                  : 'Restock surplus materials or write off damaged site scrap.'}
+              </p>
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-lg"
-          >
+          <button className="imm-close-btn" onClick={onClose} aria-label="Close modal">
             <X size={20} />
           </button>
         </div>
 
-        {/* SUCCESS ALERT */}
-        {successMsg && (
-          <div className="p-3 mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-emerald-600" />
-            Inventory successfully updated and logged to project!
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* TRANSACTION TYPE TOGGLE (EDGE CASE: SITE RETURN) */}
-          <div className="flex rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
-            <button
-              type="button"
-              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${
-                transactionType === "issue"
-                  ? "bg-white dark:bg-gray-800 text-blue-600 shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-900"
-              }`}
-              onClick={() => setTransactionType("issue")}
-            >
-              Issue to Project (Deduct Stock)
-            </button>
-            <button
-              type="button"
-              className={`flex-1 py-1.5 text-xs font-bold rounded-md transition flex items-center justify-center gap-1 ${
-                transactionType === "return"
-                  ? "bg-white dark:bg-gray-800 text-emerald-600 shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-900"
-              }`}
-              onClick={() => setTransactionType("return")}
-            >
-              <RotateCcw size={12} />
-              Return from Site (Restock)
-            </button>
-          </div>
-
-          {/* PROJECT SELECTOR */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1">
-              Select Destination Project *
-            </label>
-            <select
-              className="w-full p-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-800 dark:text-gray-100"
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              required
-            >
-              {projects.map((proj) => (
-                <option key={proj.id} value={proj.id}>
-                  {proj.name} ({proj.id})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* PRODUCT SELECTOR */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1">
-              Select Material / Product *
-            </label>
-            <select
-              className="w-full p-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-800 dark:text-gray-100"
-              value={selectedProductId}
-              onChange={(e) => {
-                setSelectedProductId(e.target.value);
-                const p = INITIAL_PRODUCTS.find((item) => item.id === e.target.value);
-                if (p && p.variants.length > 0) {
-                  setSelectedVariantId(p.variants[0].id);
-                }
-              }}
-            >
-              {INITIAL_PRODUCTS.map((prod) => (
-                <option key={prod.id} value={prod.id}>
-                  {prod.name} ({prod.brand})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* SIZE / VARIANT SELECTOR */}
-          {selectedProduct && selectedProduct.variants.length > 0 && (
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1">
-                Select Exact Size / Dimension *
-              </label>
-              <select
-                className="w-full p-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-800 dark:text-gray-100 font-semibold"
-                value={selectedVariantId}
-                onChange={(e) => setSelectedVariantId(e.target.value)}
-              >
-                {selectedProduct.variants.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.sizeLabel} &bull; Warehouse Stock: {v.stock.toFixed(2)} {selectedProduct.baseUom}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* QUANTITY ENTRY WITH TOUCH STEPPERS */}
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
-                Quantity in {selectedProduct?.baseUom || "Units"} *
-              </label>
-              <span className="text-xs text-gray-500">
-                Available in Store: <strong>{currentStock.toFixed(2)} {selectedProduct?.baseUom}</strong>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleStep(-1)}
-                className="w-12 h-11 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-bold flex items-center justify-center text-lg transition"
-              >
-                <Minus size={18} />
-              </button>
-
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={quantity}
-                onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                className="flex-1 h-11 text-center font-extrabold text-xl text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg outline-none focus:border-blue-500"
-                required
-              />
-
-              <button
-                type="button"
-                onClick={() => handleStep(1)}
-                className="w-12 h-11 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-bold flex items-center justify-center text-lg transition"
-              >
-                <Plus size={18} />
-              </button>
-            </div>
-          </div>
-
-          {/* OVER-ISSUANCE EDGE CASE WARNING */}
-          {isOverIssue && (
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
-              <AlertTriangle size={18} className="shrink-0 text-amber-600 mt-0.5" />
-              <div>
-                <strong>Low Stock Notice:</strong> Requested quantity ({quantity.toFixed(2)}{" "}
-                {selectedProduct?.baseUom}) exceeds current warehouse stock ({currentStock.toFixed(2)}{" "}
-                {selectedProduct?.baseUom}). Stock will reflect a deficit of{" "}
-                {(quantity - currentStock).toFixed(2)} {selectedProduct?.baseUom}.
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="imm-body">
+          {formError && (
+            <div className="imm-calc-banner error">
+              <div className="imm-calc-left">
+                <AlertCircle size={16} />
+                <span>{formError}</span>
               </div>
             </div>
           )}
 
-          {/* DUAL DISPLAY CALCULATION HELPER */}
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-xs text-blue-800 dark:text-blue-300 flex items-center justify-between">
-            <span>
-              Action: <strong>{transactionType === "issue" ? "Deduct" : "Restock"} {quantity.toFixed(2)} {selectedProduct?.baseUom}</strong>
-            </span>
-            <span className="flex items-center gap-1 font-semibold">
-              Post-stock: {remainingStock.toFixed(2)} {selectedProduct?.baseUom}
-            </span>
-          </div>
-
-          {/* NOTES / SITE RUN SPECIFICS */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1">
-              Site Notes / Location Details
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. 2nd floor server room AHU connection..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full p-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-xs"
-            />
-          </div>
-
-          {/* SUBMIT BUTTON */}
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+          {/* Mode Switcher */}
+          <div className="imm-mode-tabs">
             <button
               type="button"
+              className={`imm-mode-btn ${mode === 'issue' ? 'active' : ''}`}
+              onClick={() => setMode('issue')}
+            >
+              <TrendingDown size={16} />
+              Issue to Project (Deduct Stock)
+            </button>
+            <button
+              type="button"
+              className={`imm-mode-btn ${mode === 'return' ? 'active' : ''}`}
+              onClick={() => setMode('return')}
+            >
+              <RotateCcw size={16} />
+              Return from Site (Restock)
+            </button>
+          </div>
+
+          {/* Return Subtype Switcher */}
+          {mode === 'return' && (
+            <div className="imm-return-subtypes">
+              <button
+                type="button"
+                className={`imm-sub-btn ${returnSubtype === 'usable' ? 'active-usable' : ''}`}
+                onClick={() => setReturnSubtype('usable')}
+              >
+                ✓ Usable Surplus (Add back to Store Stock)
+              </button>
+              <button
+                type="button"
+                className={`imm-sub-btn ${returnSubtype === 'damaged' ? 'active-damaged' : ''}`}
+                onClick={() => setReturnSubtype('damaged')}
+              >
+                ⚠ Damaged Material (Record Site Scrap Loss)
+              </button>
+            </div>
+          )}
+
+          {/* Row 1: Project / Site */}
+          <div className="imm-row">
+            <label className="imm-row-label">
+              <Briefcase size={16} />
+              <span>Project / Site *</span>
+            </label>
+            <div className="imm-input-control">
+              <select
+                className="imm-select"
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(Number(e.target.value))}
+                required
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.project_code}) · {p.site_location}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 2: Material / Product */}
+          <div className="imm-row">
+            <label className="imm-row-label">
+              <Layers size={16} />
+              <span>Material / Product *</span>
+            </label>
+            <div className="imm-input-control">
+              <select
+                className="imm-select"
+                value={selectedProductId}
+                onChange={(e) => setSelectedProductId(Number(e.target.value))}
+                disabled={isLoadingProducts}
+                required
+              >
+                {isLoadingProducts && <option value="">Loading catalog products...</option>}
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} {p.brand ? `(${p.brand})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Size / Variant */}
+          <div className="imm-row">
+            <label className="imm-row-label">
+              <Tag size={16} />
+              <span>Size / Variant *</span>
+            </label>
+            <div className="imm-input-control">
+              <select
+                className="imm-select"
+                value={selectedVariantId}
+                onChange={(e) => setSelectedVariantId(Number(e.target.value))}
+                required
+              >
+                {currentProduct?.variants?.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.variant_name || v.size_label || 'Standard'} · Warehouse Stock: {parseFloat(String(v.stock)).toFixed(2)} {baseUom}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 4: Quantity Stepper & Available in Store */}
+          <div className="imm-row">
+            <label className="imm-row-label">
+              <Scale size={16} />
+              <span>Quantity ({baseUom}) *</span>
+            </label>
+            <div className="imm-qty-container">
+              <div className="imm-stepper">
+                <button
+                  type="button"
+                  className="imm-stepper-btn"
+                  onClick={() => handleStep(-0.5)}
+                  disabled={quantity <= 0.5}
+                >
+                  <Minus size={15} />
+                </button>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="imm-stepper-input"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="imm-stepper-btn"
+                  onClick={() => handleStep(0.5)}
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
+
+              <div className="imm-stock-snapshot">
+                <Package size={15} />
+                <span>
+                  Available in Store: <strong>{currentStock.toFixed(2)} {baseUom}</strong>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 5: Live Green Calculation Banner */}
+          <div className={`imm-calc-banner ${isOverIssue ? 'error' : 'success'}`}>
+            <div className="imm-calc-left">
+              {mode === 'issue' ? (
+                <>
+                  <TrendingDown size={16} />
+                  <span>
+                    {isOverIssue
+                      ? `Insufficient warehouse stock (${currentStock.toFixed(2)} ${baseUom} available)`
+                      : `This will deduct ${quantity.toFixed(2)} ${baseUom} from store stock.`}
+                  </span>
+                </>
+              ) : returnSubtype === 'usable' ? (
+                <>
+                  <TrendingUp size={16} />
+                  <span>This will restock +{quantity.toFixed(2)} ${baseUom} into warehouse store.</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 size={16} />
+                  <span>Damaged material ({quantity.toFixed(2)} ${baseUom}) written off as site scrap. Stock untouched.</span>
+                </>
+              )}
+            </div>
+            {!isOverIssue && (
+              <>
+                <div className="imm-calc-divider">|</div>
+                <div className="imm-calc-right">
+                  <Package size={16} />
+                  <span>
+                    Post-stock: <strong>{postStock.toFixed(2)} {baseUom}</strong>
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Row 6: Recipient Site Worker */}
+          <div className="imm-row">
+            <label className="imm-row-label">
+              <UserCheck size={16} />
+              <span>Assigned Technician *</span>
+            </label>
+            <div className="imm-input-control">
+              {projectWorkers.length > 0 ? (
+                <select
+                  className="imm-select"
+                  value={selectedWorkerId}
+                  onChange={(e) => setSelectedWorkerId(Number(e.target.value))}
+                  required
+                >
+                  {projectWorkers.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.role}) · {w.phone || w.email}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ fontSize: '0.825rem', color: '#b91c1c', padding: '0.5rem 0' }}>
+                  ⚠ No technicians deployed to this project site yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 7: Logged-in Authorizer Banner */}
+          <div className="imm-auth-pill">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldCheck size={16} color="#0f172a" />
+              <span>
+                Authorized By: <strong>{auth?.user?.name || 'Authorized Supervisor'}</strong>
+              </span>
+            </div>
+            <span className="imm-auth-badge">
+              {auth?.user?.role || 'Admin'}
+            </span>
+          </div>
+
+          {/* Row 8: Site Notes */}
+          <div className="imm-row" style={{ alignItems: 'flex-start' }}>
+            <label className="imm-row-label" style={{ paddingTop: '0.5rem' }}>
+              <FileText size={16} />
+              <span>Site Notes / Location</span>
+            </label>
+            <div className="imm-input-control">
+              <textarea
+                className="imm-textarea"
+                rows={2}
+                placeholder="e.g. Used for Central Mall – Outdoor Unit (Level 2 risers)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="imm-footer">
+            <button
+              type="button"
+              className="imm-btn-cancel"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className={`px-5 py-2.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 transition ${
-                transactionType === "issue"
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-emerald-600 hover:bg-emerald-700"
-              }`}
+              className="imm-btn-submit"
+              disabled={isSubmitting || (mode === 'issue' && isOverIssue)}
             >
-              <CheckCircle2 size={16} />
-              {transactionType === "issue" ? "Confirm Site Issue" : "Confirm Restock"}
+              {isSubmitting ? (
+                'Processing...'
+              ) : (
+                <>
+                  <Check size={16} />
+                  {mode === 'issue'
+                    ? 'Confirm Issue'
+                    : returnSubtype === 'usable'
+                      ? 'Confirm Restock'
+                      : 'Record Damaged Scrap'}
+                </>
+              )}
             </button>
           </div>
         </form>

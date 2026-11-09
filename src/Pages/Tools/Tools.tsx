@@ -164,6 +164,7 @@ export const Tools: React.FC = () => {
       await loadTools();
     } catch (err) {
       console.error("Assign error:", err);
+      throw err;
     }
   };
 
@@ -185,8 +186,9 @@ export const Tools: React.FC = () => {
         if (journeyTool?.id === toolId) setJourneyTool(res.tool);
       }
       await loadTools();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Return error:", err);
+      alert(err?.response?.data?.message || "Failed to return tool.");
     }
   };
 
@@ -392,7 +394,13 @@ export const Tools: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedTools.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="empty-state py-12 text-center text-slate-500">
+                    <p className="text-sm font-semibold">Loading fleet tools and equipment...</p>
+                  </td>
+                </tr>
+              ) : paginatedTools.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="empty-state py-12 text-center text-slate-500">
                     <Package size={36} className="mx-auto text-slate-300 mb-2" />

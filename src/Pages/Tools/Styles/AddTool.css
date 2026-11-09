@@ -1,175 +1,202 @@
-/* AddTool.css */
-
-.add-tool-wrapper {
-  max-width: 800px;
+/* Monochromatic Add Tool / Equipment Page Styling */
+.add-tool-page {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #0f172a;
 }
 
-.add-tool-card {
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: var(--radius, 14px);
-  box-shadow: var(--card-shadow, 0 2px 8px rgba(15, 23, 42, 0.04));
-  padding: 24px 28px;
+.back-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: color 0.15s ease;
 }
 
-.add-tool-card h3 {
-  color: var(--text-primary, #172b4d);
-  font-size: 16px;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
-  padding-bottom: 12px;
+.back-link-btn:hover {
+  color: #0f172a;
+}
+
+.add-tool-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
-.tool-form {
+.add-tool-header .header-icon-box {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.add-tool-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
+}
+
+.add-tool-header p {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Form Section Cards */
+.tool-form-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.card-label-col h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.card-label-col p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.card-fields-col {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
-.form-grid {
+.form-row-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
 }
 
-.form-group {
+.form-row-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.field-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.form-group label {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--text-primary, #172b4d);
+.field-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
 }
 
-.form-group input,
-.form-group textarea,
-.form-group select {
+.form-input,
+.form-select,
+.form-textarea {
   width: 100%;
-  padding: 10px 14px;
-  background: var(--page-bg, #f4f7fb);
-  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  color: var(--text-primary, #172b4d);
-  font-family: inherit;
-  font-size: 13.5px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-  color: var(--text-secondary, #718096);
-}
-
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
+  font-size: 13px;
+  color: #0f172a;
+  background: #ffffff;
   outline: none;
-  background: var(--card-bg, #ffffff);
-  border-color: var(--accent, #0d9488);
-  box-shadow: 0 0 0 3px var(--accent-light, #ccfbf1);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
-.dark .form-group select {
-  color: var(--text-primary);
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 1px #0f172a;
 }
 
-.image-upload-zone {
-  position: relative;
+.form-textarea {
+  resize: vertical;
+}
+
+/* Actions Row */
+.tool-actions-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 36px 16px;
-  border: 2px dashed var(--border-color, #e2e8f0);
-  border-radius: 10px;
-  background: var(--page-bg, #f4f7fb);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.image-upload-zone:hover {
-  border-color: var(--accent, #0d9488);
-  background: var(--btn-hover-bg, #f0fdfa);
-}
-
-.image-upload-zone .upload-icon {
-  color: var(--text-secondary, #718096);
-  margin-bottom: 12px;
-  transition: color 0.2s ease;
-}
-
-.image-upload-zone:hover .upload-icon {
-  color: var(--accent, #0d9488);
-}
-
-.image-upload-zone .upload-text {
-  color: var(--text-primary, #172b4d);
-  font-weight: 650;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.image-upload-zone .upload-hint {
-  color: var(--text-secondary, #718096);
-  font-size: 12.5px;
-}
-
-.hidden-file-input {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.form-actions {
-  border-top: 1px solid var(--border-color, #e2e8f0);
-  padding-top: 20px;
-  margin-top: 8px;
-  display: flex;
   justify-content: flex-end;
   gap: 12px;
+  padding: 16px 0;
 }
 
-.btn-cancel,
-.btn-submit {
-  padding: 9px 20px;
-  border-radius: 8px;
+.tool-actions-row .btn-cancel {
+  padding: 10px 18px;
   font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.15s ease;
 }
 
-.btn-cancel {
-  background: transparent;
-  border: 1px solid var(--border-color, #e2e8f0);
-  color: var(--text-primary, #172b4d);
+.tool-actions-row .btn-cancel:hover {
+  background: #f8fafc;
+  color: #0f172a;
 }
 
-.btn-cancel:hover {
-  background: var(--border-color, #e2e8f0);
-}
-
-.btn-submit {
-  background: var(--accent, #0d9488);
-  border: 1px solid var(--accent, #0d9488);
+.tool-actions-row .btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
   color: #ffffff;
+  background: #0f172a;
+  border: 1px solid #0f172a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
 }
 
-.btn-submit:hover {
-  background: #0f766e;
-  border-color: #0f766e;
+.tool-actions-row .btn-save:hover {
+  background: #1e293b;
 }
 
-@media (max-width: 640px) {
-  .form-grid {
+/* Responsive */
+@media (max-width: 768px) {
+  .add-tool-page {
+    padding: 16px;
+  }
+  .tool-form-card {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
+  }
+  .form-row-2col,
+  .form-row-3col {
+    grid-template-columns: 1fr;
   }
 }

@@ -10,7 +10,10 @@ import {
   Plus,
   MoreHorizontal,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Edit2,
+  X,
+  Check
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './Styles/Products.css';
@@ -49,6 +52,25 @@ export const Products: React.FC = () => {
 
   // Active menu dropdown id for row actions
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Edit Product Modal State
+  const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null);
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    brand: string;
+    baseUom: string;
+    packageUom: string;
+    packageRatio: number;
+    variants: { id: string; sizeLabel: string; sku: string; stock: number; minThreshold: number; unitCost: number }[];
+  }>({
+    name: '',
+    brand: '',
+    baseUom: '',
+    packageUom: '',
+    packageRatio: 1,
+    variants: [],
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch categories for the filter dropdown
   useEffect(() => {
@@ -209,6 +231,75 @@ export const Products: React.FC = () => {
     if (stock <= 0) return "Out of Stock";
     if (stock <= min) return "Low Stock";
     return "In Stock";
+  };
+
+  // Open Edit Modal
+  const handleOpenEdit = (p: ProductItem) => {
+    setEditingProduct(p);
+    setEditForm({
+      name: p.name,
+      brand: p.brand || "",
+      baseUom: p.baseUom,
+      packageUom: p.packageUom || "",
+      packageRatio: p.packageRatio || 1,
+      variants: p.variants.map((v) => ({ ...v })),
+    });
+    setActiveMenuId(null);
+  };
+
+  // Save Product Updates
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+
+    try {
+      setIsUpdating(true);
+      const numericId = parseInt(editingProduct.id, 10);
+      if (!isNaN(numericId)) {
+        const matchedCat = categoryList.find((c) => c.name === editingProduct.categoryName) || categoryList[0];
+        await productsApi.update(numericId, {
+          name: editForm.name,
+          brand: editForm.brand,
+          category_id: matchedCat ? matchedCat.id : 1,
+          base_uom: editForm.baseUom,
+          package_uom: editForm.packageUom || undefined,
+          package_ratio: editForm.packageRatio || undefined,
+          variants: editForm.variants.map((v) => {
+            const vNumId = parseInt(v.id, 10);
+            return {
+              id: !isNaN(vNumId) ? vNumId : undefined,
+              size_label: v.sizeLabel,
+              sku: v.sku,
+              stock: Number(v.stock),
+              min_threshold: Number(v.minThreshold),
+              unit_cost: Number(v.unitCost),
+            };
+          }),
+        });
+        await handleManualSync();
+      } else {
+        setProducts((prev) =>
+          prev.map((item) =>
+            item.id === editingProduct.id
+              ? {
+                  ...item,
+                  name: editForm.name,
+                  brand: editForm.brand,
+                  baseUom: editForm.baseUom,
+                  packageUom: editForm.packageUom,
+                  packageRatio: editForm.packageRatio,
+                  variants: editForm.variants,
+                }
+              : item
+          )
+        );
+      }
+      setEditingProduct(null);
+    } catch (err) {
+      console.error("Save product edit failed:", err);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   // Handle product deletion
@@ -472,31 +563,42 @@ export const Products: React.FC = () => {
                               : "In Stock"
                           )}
                         </td>
-                        <td onClick={(e) => e.stopPropagation()} style={{ position: "relative" }}>
-                          <button
-                            className="row-action-more-btn"
-                            title="More options"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId((prev) => (prev === p.id ? null : p.id));
-                            }}
-                          >
-                            <MoreHorizontal size={18} />
-                          </button>
-
-                          {activeMenuId === p.id && (
-                            <div
-                              className="absolute right-2 top-8 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[140px]"
-                              onClick={(e) => e.stopPropagation()}
+                        <td onClick={(e) => e.stopPropagation()} style={{ textAlign: "right", paddingRight: "1.25rem" }}>
+                          <div className="product-action-menu-container">
+                            <button
+                              className="row-action-more-btn"
+                              title="More options"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId((prev) => (prev === p.id ? null : p.id));
+                              }}
                             >
-                              <button
-                                className="w-full text-left px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2"
-                                onClick={() => handleDeleteProduct(p.id, p.name)}
+                              <MoreHorizontal size={18} />
+                            </button>
+
+                            {activeMenuId === p.id && (
+                              <div
+                                className="product-flyout-dropdown"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                <Trash2 size={14} /> Delete Product
-                              </button>
-                            </div>
-                          )}
+                                <button
+                                  className="product-flyout-item"
+                                  onClick={() => handleOpenEdit(p)}
+                                >
+                                  <Edit2 size={14} /> Edit Product
+                                </button>
+
+                                <div className="product-flyout-divider" />
+
+                                <button
+                                  className="product-flyout-item danger"
+                                  onClick={() => handleDeleteProduct(p.id, p.name)}
+                                >
+                                  <Trash2 size={14} /> Delete Product
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
 
@@ -566,6 +668,177 @@ export const Products: React.FC = () => {
           }}
         />
       </div>
+
+      {/* EDIT PRODUCT MODAL */}
+      {editingProduct && (
+        <div className="product-modal-backdrop" onClick={() => setEditingProduct(null)}>
+          <div className="product-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="product-modal-header">
+              <h3>Edit Product: {editingProduct.name}</h3>
+              <button
+                onClick={() => setEditingProduct(null)}
+                className="product-modal-close-btn"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit}>
+              <div className="product-modal-body">
+                <div className="product-modal-row-2col">
+                  <div className="product-modal-field">
+                    <label>Product Name *</label>
+                    <input
+                      type="text"
+                      className="product-modal-input"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="product-modal-field">
+                    <label>Brand / Manufacturer</label>
+                    <input
+                      type="text"
+                      className="product-modal-input"
+                      value={editForm.brand}
+                      onChange={(e) => setEditForm({ ...editForm, brand: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="product-modal-row-2col">
+                  <div className="product-modal-field">
+                    <label>Base Unit of Measure (UOM) *</label>
+                    <input
+                      type="text"
+                      className="product-modal-input"
+                      value={editForm.baseUom}
+                      onChange={(e) => setEditForm({ ...editForm, baseUom: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="product-modal-field">
+                    <label>Packaging UOM (Optional)</label>
+                    <input
+                      type="text"
+                      className="product-modal-input"
+                      placeholder="e.g. Coils or Boxes"
+                      value={editForm.packageUom}
+                      onChange={(e) => setEditForm({ ...editForm, packageUom: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {editForm.variants.length > 0 && (
+                  <div className="product-modal-variants-section">
+                    <h4>Size Variants & Stock Levels</h4>
+                    <table className="product-modal-variants-table">
+                      <thead>
+                        <tr>
+                          <th>Size / Spec</th>
+                          <th>SKU</th>
+                          <th>Current Stock</th>
+                          <th>Min Alert</th>
+                          <th>Unit Cost (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editForm.variants.map((v, idx) => (
+                          <tr key={v.id || idx}>
+                            <td>
+                              <input
+                                type="text"
+                                className="product-modal-var-input"
+                                value={v.sizeLabel}
+                                onChange={(e) => {
+                                  const updated = [...editForm.variants];
+                                  updated[idx].sizeLabel = e.target.value;
+                                  setEditForm({ ...editForm, variants: updated });
+                                }}
+                                required
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                className="product-modal-var-input font-mono"
+                                value={v.sku}
+                                onChange={(e) => {
+                                  const updated = [...editForm.variants];
+                                  updated[idx].sku = e.target.value;
+                                  setEditForm({ ...editForm, variants: updated });
+                                }}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                step="any"
+                                className="product-modal-var-input font-semibold"
+                                value={v.stock}
+                                onChange={(e) => {
+                                  const updated = [...editForm.variants];
+                                  updated[idx].stock = parseFloat(e.target.value) || 0;
+                                  setEditForm({ ...editForm, variants: updated });
+                                }}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                step="any"
+                                className="product-modal-var-input"
+                                value={v.minThreshold}
+                                onChange={(e) => {
+                                  const updated = [...editForm.variants];
+                                  updated[idx].minThreshold = parseFloat(e.target.value) || 0;
+                                  setEditForm({ ...editForm, variants: updated });
+                                }}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                step="any"
+                                className="product-modal-var-input"
+                                value={v.unitCost}
+                                onChange={(e) => {
+                                  const updated = [...editForm.variants];
+                                  updated[idx].unitCost = parseFloat(e.target.value) || 0;
+                                  setEditForm({ ...editForm, variants: updated });
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="product-modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="btn-product-cancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="btn-product-save"
+                >
+                  <Check size={14} /> {isUpdating ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

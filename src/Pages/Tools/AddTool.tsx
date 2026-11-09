@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Wrench, Check, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Wrench, Check, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import './Styles/AddTool.css';
 import { TOOL_CATEGORIES } from './toolTypes';
-import type { ToolCondition, ToolItem } from './toolTypes';
-import { generateUniqueId } from '../../utils/idGenerator';
+import type { ToolCondition } from './toolTypes';
+import { toolsApi } from '../../api/toolsApi';
 
 export const AddTool: React.FC = () => {
   const navigate = useNavigate();
@@ -24,43 +24,39 @@ export const AddTool: React.FC = () => {
   const [initialCondition, setInitialCondition] = useState<ToolCondition>("Brand New");
   const [notes, setNotes] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!toolName.trim()) return;
 
-    const newTool: ToolItem = {
-      id: generateUniqueId("tool"),
-      toolCode: toolCode.trim() || "TL-001",
-      name: toolName.trim(),
-      category,
-      brand: brand.trim() || "Standard",
-      modelNo: modelNo.trim() || "N/A",
-      serialNo: serialNo.trim() || "S/N-" + Math.floor(1000 + Math.random() * 9000),
-      purchaseDate,
-      purchaseCost: Number(purchaseCost) || 0,
-      currentCondition: initialCondition,
-      status: "Available",
-      storageLocation: storageLocation.trim() || "Tool Room",
-      assignedTo: null,
-      journey: [
-        {
-          id: generateUniqueId("j"),
-          eventType: "CREATED",
-          timestamp: new Date().toISOString().replace("T", " ").substring(0, 16),
-          handledBy: "Admin",
-          conditionAfter: initialCondition,
-          notes: notes.trim() || "Newly registered tool in fleet.",
-        },
-      ],
-    };
+    try {
+      setIsSubmitting(true);
+      setErrorMessage("");
+      await toolsApi.create({
+        tool_code: toolCode.trim() || `TL-${Math.floor(100 + Math.random() * 900)}`,
+        name: toolName.trim(),
+        category,
+        brand: brand.trim() || "Standard",
+        model_no: modelNo.trim() || "N/A",
+        serial_no: serialNo.trim() || `S/N-${Math.floor(1000 + Math.random() * 9000)}`,
+        purchase_date: purchaseDate,
+        purchase_cost: Number(purchaseCost) || 0,
+        current_condition: initialCondition,
+        storage_location: storageLocation.trim() || "Crib Bay A-1",
+      });
 
-    console.log("Newly registered tool:", newTool);
-    setIsSaved(true);
-    setTimeout(() => {
-      navigate("/dashboard/tools");
-    }, 700);
+      setIsSaved(true);
+      setTimeout(() => {
+        navigate("/dashboard/tools");
+      }, 700);
+    } catch (err: any) {
+      setErrorMessage(err?.response?.data?.message || "Failed to register tool. Ensure tool code is unique.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -85,6 +81,13 @@ export const AddTool: React.FC = () => {
         <div className="p-4 mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center gap-2">
           <Check size={18} className="text-emerald-600" />
           Tool registered successfully! Starting tool journey audit trail...
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-4 mb-6 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-sm font-semibold flex items-center gap-2">
+          <AlertCircle size={18} className="text-rose-600" />
+          {errorMessage}
         </div>
       )}
 
@@ -264,8 +267,8 @@ export const AddTool: React.FC = () => {
           <Link to="/dashboard/tools" className="btn-cancel">
             Cancel
           </Link>
-          <button type="submit" className="btn-save">
-            <Check size={16} /> Register Equipment & Start Journey
+          <button type="submit" className="btn-save" disabled={isSubmitting}>
+            <Check size={16} /> {isSubmitting ? "Registering Equipment..." : "Register Equipment & Start Journey"}
           </button>
         </div>
       </form>

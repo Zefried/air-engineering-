@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Package,
   Users,
@@ -11,7 +11,8 @@ import {
   User,
   MapPin,
   Link2,
-  CornerDownLeft
+  CornerDownLeft,
+  Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './Styles/Tools.css';
@@ -21,13 +22,25 @@ import { AssignToolModal } from './Components/AssignToolModal';
 import { ReturnToolModal } from './Components/ReturnToolModal';
 import { ToolJourneyModal } from './Components/ToolJourneyModal';
 import Pagination from '../../Components/Pagination/Pagination';
-import { generateUniqueId } from '../../utils/idGenerator';
+import { toolsApi } from '../../api/toolsApi';
 
 export const Tools: React.FC = () => {
   const [tools, setTools] = useState<ToolItem[]>(INITIAL_TOOLS);
+  const [kpiCounts, setKpiCounts] = useState<{
+    total_tools: number;
+    in_field: number;
+    available: number;
+    needs_repair: number;
+  }>({
+    total_tools: 6,
+    in_field: 2,
+    available: 2,
+    needs_repair: 1,
+  });
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("All Tools");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,6 +51,28 @@ export const Tools: React.FC = () => {
   const [returningTool, setReturningTool] = useState<ToolItem | null>(null);
   const [journeyTool, setJourneyTool] = useState<ToolItem | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Load tools from backend
+  const loadTools = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await toolsApi.getAll();
+      if (res && res.tools && res.tools.length > 0) {
+        setTools(res.tools);
+      }
+      if (res && res.kpis) {
+        setKpiCounts(res.kpis);
+      }
+    } catch (err) {
+      console.warn("Backend tools API unreachable, using local state", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTools();
+  }, [loadTools]);
 
   // Close menus on outside click
   useEffect(() => {
@@ -56,6 +91,7 @@ export const Tools: React.FC = () => {
           </span>
         );
       case "In Field":
+      case "In Use":
         return (
           <span className="mockup-status-pill in-field">
             <span className="dot" /> In Field
@@ -100,8 +136,8 @@ export const Tools: React.FC = () => {
     }
   };
 
-  // Handlers for Tool Operations
-  const handleAssignConfirm = (
+  // Handlers for Tool Operations via API
+  const handleAssignConfirm = async (
     toolId: string,
     payload: {
       workerId: string;
@@ -112,114 +148,76 @@ export const Tools: React.FC = () => {
       notes?: string;
     }
   ) => {
-    const nowStr = new Date().toISOString().replace("T", " ").substring(0, 16);
-    const shortProject = payload.projectName.includes("VRF")
-      ? "VRF Installation"
-      : payload.projectName.includes("Commissioning")
-      ? "Commissioning"
-      : payload.projectName.includes("Chiller")
-      ? "Chiller Overhaul"
-      : "Site Work";
+    try {
+      const res = await toolsApi.assign(toolId, {
+        worker_id: payload.workerId,
+        project_name: payload.projectName,
+        condition: payload.assignedCondition,
+        expected_return_date: payload.expectedReturnDate,
+        notes: payload.notes,
+      });
 
-    setTools((prev) =>
-      prev.map((t) => {
-        if (t.id !== toolId) return t;
-
-        const newJourneyEvent = {
-          id: generateUniqueId("j"),
-          eventType: "ASSIGNED" as const,
-          timestamp: nowStr,
-          workerId: payload.workerId,
-          workerName: payload.workerName,
-          projectName: payload.projectName,
-          handledBy: "Manager",
-          conditionBefore: payload.assignedCondition,
-          expectedReturnDate: payload.expectedReturnDate,
-          notes: payload.notes,
-        };
-
-        return {
-          ...t,
-          status: "In Field" as ToolStatus,
-          currentCondition: payload.assignedCondition,
-          assignedTo: {
-            workerId: payload.workerId,
-            workerName: payload.workerName,
-            projectName: payload.projectName,
-            projectShortName: shortProject,
-            assignedDate: nowStr,
-            expectedReturnDate: payload.expectedReturnDate,
-            isOverdue: false,
-            assignedCondition: payload.assignedCondition,
-          },
-          journey: [...t.journey, newJourneyEvent],
-        };
-      })
-    );
+      if (res && res.tool) {
+        setTools((prev) => prev.map((t) => (t.id === toolId ? res.tool : t)));
+        if (journeyTool?.id === toolId) setJourneyTool(res.tool);
+      }
+      await loadTools();
+    } catch (err) {
+      console.error("Assign error:", err);
+    }
   };
 
-  const handleReturnConfirm = (
+  const handleReturnConfirm = async (
     toolId: string,
     payload: {
       returnCondition: ToolCondition;
       notes?: string;
     }
   ) => {
-    const nowStr = new Date().toISOString().replace("T", " ").substring(0, 16);
+    try {
+      const res = await toolsApi.returnTool(toolId, {
+        condition: payload.returnCondition,
+        note_text: payload.notes,
+      });
 
-    setTools((prev) =>
-      prev.map((t) => {
-        if (t.id !== toolId) return t;
+      if (res && res.tool) {
+        setTools((prev) => prev.map((t) => (t.id === toolId ? res.tool : t)));
+        if (journeyTool?.id === toolId) setJourneyTool(res.tool);
+      }
+      await loadTools();
+    } catch (err) {
+      console.error("Return error:", err);
+    }
+  };
 
-        const assigned = t.assignedTo;
-        const conditionBefore = assigned?.assignedCondition || t.currentCondition;
-        const isDegraded =
-          (conditionBefore === "Brand New" || conditionBefore === "Good") &&
-          (payload.returnCondition === "Damaged" || payload.returnCondition === "Scrapped");
+  const handleAddNoteToTool = async (toolId: string, text: string) => {
+    try {
+      await toolsApi.addNote(toolId, { text });
+      const fresh = await toolsApi.getById(toolId);
+      if (fresh && fresh.tool) {
+        setTools((prev) => prev.map((t) => (t.id === toolId ? fresh.tool : t)));
+        if (journeyTool?.id === toolId) setJourneyTool(fresh.tool);
+      }
+    } catch (err) {
+      console.error("Add note error:", err);
+    }
+  };
 
-        let nextStatus: ToolStatus = "Available";
-        if (payload.returnCondition === "Damaged") nextStatus = "Needs Repair";
-        if (payload.returnCondition === "Scrapped") nextStatus = "Retired";
-        if (payload.returnCondition === "Lost") nextStatus = "Lost";
-
-        const newJourneyEvent = {
-          id: generateUniqueId("j"),
-          eventType:
-            payload.returnCondition === "Scrapped"
-              ? ("SCRAPPED" as const)
-              : ("RETURNED" as const),
-          timestamp: nowStr,
-          workerId: assigned?.workerId,
-          workerName: assigned?.workerName,
-          projectName: assigned?.projectName,
-          handledBy: "Manager",
-          conditionBefore,
-          conditionAfter: payload.returnCondition,
-          actualReturnDate: nowStr,
-          isOverdue: assigned?.isOverdue,
-          notes: payload.notes
-            ? payload.notes
-            : isDegraded
-            ? `Condition degraded from ${conditionBefore} to ${payload.returnCondition} under ${assigned?.workerName}`
-            : "Returned in standard condition.",
-        };
-
-        return {
-          ...t,
-          status: nextStatus,
-          currentCondition: payload.returnCondition,
-          assignedTo: null,
-          journey: [...t.journey, newJourneyEvent],
-        };
-      })
-    );
+  const handleDeleteTool = async (toolId: string) => {
+    if (!window.confirm("Are you sure you want to remove this tool from the fleet?")) return;
+    try {
+      await toolsApi.delete(toolId);
+      await loadTools();
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
   };
 
   // KPIs matching mockup
-  const totalTools = tools.length;
-  const inFieldCount = tools.filter((t) => t.status === "In Field").length;
-  const availableCount = tools.filter((t) => t.status === "Available").length;
-  const needsRepairCount = tools.filter((t) => t.status === "Needs Repair" || t.currentCondition === "Damaged").length;
+  const totalTools = kpiCounts.total_tools ?? tools.length;
+  const inFieldCount = kpiCounts.in_field ?? tools.filter((t) => t.status === "In Field" || t.status === "In Use").length;
+  const availableCount = kpiCounts.available ?? tools.filter((t) => t.status === "Available").length;
+  const needsRepairCount = kpiCounts.needs_repair ?? tools.filter((t) => t.status === "Needs Repair" || t.currentCondition === "Damaged").length;
 
   // Filtered List
   const filteredTools = useMemo(() => {
@@ -230,18 +228,18 @@ export const Tools: React.FC = () => {
       }
 
       // Tab filter
-      if (activeTab === "In Use" && tool.status !== "In Field") return false;
+      if (activeTab === "In Use" && tool.status !== "In Field" && tool.status !== "In Use") return false;
       if (activeTab === "Available" && tool.status !== "Available") return false;
       if (activeTab === "Needs Repair" && tool.status !== "Needs Repair" && tool.currentCondition !== "Damaged") return false;
 
       // Search filter
       if (search.trim()) {
         const q = search.toLowerCase();
-        const matchesName = tool.name.toLowerCase().includes(q);
-        const matchesCode = tool.toolCode.toLowerCase().includes(q);
-        const matchesSerial = tool.serialNo.toLowerCase().includes(q);
-        const matchesWorker = tool.assignedTo?.workerName.toLowerCase().includes(q);
-        const matchesCategory = tool.category.toLowerCase().includes(q);
+        const matchesName = tool.name?.toLowerCase().includes(q);
+        const matchesCode = tool.toolCode?.toLowerCase().includes(q);
+        const matchesSerial = tool.serialNo?.toLowerCase().includes(q);
+        const matchesWorker = tool.assignedTo?.workerName?.toLowerCase().includes(q);
+        const matchesCategory = tool.category?.toLowerCase().includes(q);
         if (!matchesName && !matchesCode && !matchesSerial && !matchesWorker && !matchesCategory) {
           return false;
         }
@@ -480,7 +478,7 @@ export const Tools: React.FC = () => {
                             <span>Journey</span>
                           </button>
 
-                          <div className="relative inline-block">
+                          <div className="tool-action-menu-container">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -494,41 +492,53 @@ export const Tools: React.FC = () => {
 
                             {activeMenuId === tool.id && (
                               <div
-                                className="absolute right-0 top-8 z-30 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 min-w-[170px] text-left"
+                                className="tool-flyout-dropdown"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {tool.status === "Available" && (
                                   <button
-                                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 flex items-center gap-2"
+                                    className="tool-flyout-item primary"
                                     onClick={() => {
                                       setAssigningTool(tool);
                                       setActiveMenuId(null);
                                     }}
                                   >
-                                    <Link2 size={14} className="text-blue-600" /> Assign to Worker
+                                    <Link2 size={14} /> Assign to Worker
                                   </button>
                                 )}
 
-                                {tool.status === "In Field" && (
+                                {(tool.status === "In Field" || tool.status === "In Use") && (
                                   <button
-                                    className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2"
+                                    className="tool-flyout-item primary"
                                     onClick={() => {
                                       setReturningTool(tool);
                                       setActiveMenuId(null);
                                     }}
                                   >
-                                    <CornerDownLeft size={14} /> Check-In / Return
+                                    <CornerDownLeft size={14} /> Return Tool
                                   </button>
                                 )}
 
                                 <button
-                                  className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                  className="tool-flyout-item"
                                   onClick={() => {
                                     setJourneyTool(tool);
                                     setActiveMenuId(null);
                                   }}
                                 >
-                                  <History size={14} className="text-slate-500" /> View History
+                                  <History size={14} /> View History
+                                </button>
+
+                                <div className="tool-flyout-divider" />
+
+                                <button
+                                  className="tool-flyout-item danger"
+                                  onClick={() => {
+                                    handleDeleteTool(tool.id);
+                                    setActiveMenuId(null);
+                                  }}
+                                >
+                                  <Trash2 size={14} /> Remove Tool
                                 </button>
                               </div>
                             )}
@@ -586,6 +596,7 @@ export const Tools: React.FC = () => {
           tool={journeyTool}
           isOpen={!!journeyTool}
           onClose={() => setJourneyTool(null)}
+          onAddNote={handleAddNoteToTool}
         />
       )}
     </div>

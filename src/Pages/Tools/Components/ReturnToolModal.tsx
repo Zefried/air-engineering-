@@ -50,7 +50,7 @@ export const ReturnToolModal: React.FC<ReturnToolModalProps> = ({
               <span className="font-mono text-xs font-semibold px-2 py-0.5 bg-slate-900 text-white rounded">
                 {tool.toolCode}
               </span>
-              <h3 className="text-base font-bold text-slate-900">Check-In / Return Tool</h3>
+              <h3 className="text-base font-bold text-slate-900">Return Tool</h3>
             </div>
             <p className="text-xs text-slate-500 mt-1">{tool.name}</p>
           </div>
@@ -160,7 +160,7 @@ export const ReturnToolModal: React.FC<ReturnToolModalProps> = ({
               type="submit"
               className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
             >
-              <Check size={14} /> Confirm Check-In
+              <Check size={14} /> Confirm Return
             </button>
           </div>
         </form>

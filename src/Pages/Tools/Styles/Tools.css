@@ -469,6 +469,103 @@
   color: #0f172a;
 }
 
+/* Action Menu Flyout */
+.tool-action-menu-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tool-flyout-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 50;
+  min-width: 175px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.14), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  animation: flyoutIn 0.12s ease-out;
+}
+
+@keyframes flyoutIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tool-flyout-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1e293b;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.tool-flyout-item svg {
+  color: #64748b;
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+
+.tool-flyout-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tool-flyout-item:hover svg {
+  color: #0f172a;
+}
+
+.tool-flyout-item.primary {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.tool-flyout-item.danger {
+  color: #dc2626;
+}
+
+.tool-flyout-item.danger svg {
+  color: #dc2626;
+}
+
+.tool-flyout-item.danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.tool-flyout-item.danger:hover svg {
+  color: #b91c1c;
+}
+
+.tool-flyout-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 3px 0;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .mockup-stats-grid {

@@ -1,0 +1,454 @@
+/* Pixel-Perfect Mockup Styling for Tool Journey Modal */
+.journey-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 20px;
+}
+
+.journey-modal-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 1020px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid #e2e8f0;
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.journey-modal-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+.journey-modal-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Header */
+.journey-modal-header {
+  padding: 24px 32px 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.header-left-col {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tool-header-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tool-header-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fallback-tool-icon {
+  font-size: 26px;
+}
+
+.tool-header-tag-pill {
+  display: inline-block;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.tool-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 2px 0;
+}
+
+.tool-header-sub {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+}
+
+.header-right-col {
+  margin-right: 36px;
+}
+
+.tool-header-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tool-header-status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.tool-header-status-pill.in-use,
+.tool-header-status-pill.in-field {
+  background: #ecfdf5;
+  color: #059669;
+}
+.tool-header-status-pill.in-use .dot,
+.tool-header-status-pill.in-field .dot {
+  background: #059669;
+}
+
+.tool-header-status-pill.available {
+  background: #ecfdf5;
+  color: #059669;
+}
+.tool-header-status-pill.available .dot {
+  background: #059669;
+}
+
+.tool-header-status-pill.needs-repair {
+  background: #fffbeb;
+  color: #d97706;
+}
+.tool-header-status-pill.needs-repair .dot {
+  background: #d97706;
+}
+
+/* Nav Tabs matching mockup */
+.journey-modal-nav-tabs {
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 14px;
+}
+
+.nav-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-tab-btn:hover:not(.active) {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.nav-tab-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Modal Body */
+.journey-modal-body {
+  padding: 24px 32px 32px 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Timeline List matching mockup */
+.journey-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.timeline-row-item {
+  display: grid;
+  grid-template-columns: 24px 44px 220px 220px 1fr 140px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  position: relative;
+}
+
+/* Track line & dot */
+.timeline-node-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.timeline-dot.filled-black {
+  background: #0f172a;
+}
+
+.timeline-dot.hollow {
+  background: #ffffff;
+  border: 2px solid #0f172a;
+}
+
+.timeline-dot.filled-gray {
+  background: #94a3b8;
+}
+
+.timeline-vertical-line {
+  position: absolute;
+  top: 15px;
+  bottom: -22px;
+  width: 1.5px;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+/* Icon box */
+.timeline-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Info Column */
+.timeline-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timeline-title-bold {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.timeline-subtitle-gray {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Badge Column */
+.timeline-badge-col {
+  display: flex;
+  align-items: center;
+}
+
+.journey-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.journey-badge.good {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.journey-badge.rough {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.journey-badge.repair {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.journey-badge.scrapped {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Note column with optional thumbnail */
+.timeline-note-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.note-thumb-wrap {
+  width: 44px;
+  height: 30px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  flex-shrink: 0;
+}
+
+.note-thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.timeline-note-text {
+  font-size: 12px;
+  color: #475569;
+}
+
+/* Timestamp column */
+.timeline-time-col {
+  text-align: right;
+  font-size: 12px;
+  color: #64748b;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+/* Details Tab Grid */
+.details-tab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.detail-field-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* Notes Tab List */
+.notes-tab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-card-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.note-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.note-card-body {
+  font-size: 12.5px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Mobile responsive */
+@media (max-width: 900px) {
+  .timeline-row-item {
+    grid-template-columns: 24px 38px 1fr;
+    gap: 10px;
+    padding: 16px 0;
+  }
+  .timeline-badge-col,
+  .timeline-note-col,
+  .timeline-time-col {
+    grid-column: 3;
+    padding-left: 0;
+  }
+  .timeline-time-col {
+    text-align: left;
+  }
+}

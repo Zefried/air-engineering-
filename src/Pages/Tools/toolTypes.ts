@@ -1,21 +1,23 @@
 export type ToolCondition = "Brand New" | "Good" | "Fair" | "Rough" | "Damaged" | "Scrapped" | "Lost";
-export type ToolStatus = "Available" | "In Field" | "Needs Repair" | "Retired" | "Lost";
+export type ToolStatus = "Available" | "In Use" | "In Field" | "Needs Repair" | "Retired" | "Lost";
 
 export interface ToolJourneyEvent {
   id: string;
   eventType: "CREATED" | "ASSIGNED" | "RETURNED" | "MAINTENANCE_SENT" | "MAINTENANCE_RETURNED" | "SCRAPPED";
+  title: string;
+  subtitle: string;
+  badgeLabel: string;
+  badgeVariant: "good" | "rough" | "repair" | "scrapped";
   timestamp: string;
   workerName?: string;
   workerId?: string;
   projectName?: string;
-  handledBy: string;
+  handledBy?: string;
   conditionBefore?: ToolCondition;
   conditionAfter?: ToolCondition;
-  expectedReturnDate?: string;
-  actualReturnDate?: string;
-  isOverdue?: boolean;
-  notes?: string;
-  repairCost?: number;
+  noteText?: string;
+  noteImage?: string;
+  isCurrent?: boolean;
 }
 
 export interface ActiveAssignment {
@@ -45,12 +47,13 @@ export interface ToolItem {
   assignedTo?: ActiveAssignment | null;
   storageLocation: string;
   journey: ToolJourneyEvent[];
+  notesList?: { id: string; author: string; date: string; text: string }[];
 }
 
 export const WORKERS_LIST = [
   { id: "W-101", name: "Rahul Kumar", phone: "+91 98765 43210", trade: "Senior HVAC Technician" },
   { id: "W-102", name: "Mohammed Zafar", phone: "+91 98765 77889", trade: "Brazing Specialist" },
-  { id: "W-103", name: "Suresh Verma", phone: "+91 98765 11223", trade: "Chiller Specialist" },
+  { id: "W-103", name: "Amit Das", phone: "+91 98765 11223", trade: "Commissioning Specialist" },
   { id: "W-104", name: "Amit Sharma", phone: "+91 98765 33445", trade: "VRF Piping Tech" },
   { id: "W-105", name: "Vikram Singh", phone: "+91 98765 55667", trade: "Ducting Fitter" },
 ];
@@ -75,46 +78,95 @@ export const INITIAL_TOOLS: ToolItem[] = [
   {
     id: "tool-1",
     toolCode: "TL-VP-001",
-    name: "Robinair 2-Stage Rotary Vacuum Pump",
+    name: "Robinair Rotary Vacuum Pump",
     category: "Vacuum & Recovery",
-    brand: "Robinair",
-    modelNo: "15500",
+    brand: "Robinaire",
+    modelNo: "15500-VacuMaster",
     serialNo: "RB-2023-8841",
     imageUrl: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=120&auto=format&fit=crop&q=80",
     purchaseDate: "2024-02-15",
     purchaseCost: 28500,
     currentCondition: "Good",
-    status: "In Field",
+    status: "In Use",
     storageLocation: "Crib, Bay A-1",
     assignedTo: {
       workerId: "W-101",
       workerName: "Rahul Kumar",
       projectName: "Central Mall VRF Installation",
       projectShortName: "VRF Installation",
-      assignedDate: "2026-11-07 08:30",
-      expectedReturnDate: "2026-11-09 18:00",
+      assignedDate: "09 Nov 2026, 10:30 AM",
+      expectedReturnDate: "12 Nov 2026, 06:00 PM",
       isOverdue: false,
       assignedCondition: "Good",
     },
+    notesList: [
+      { id: "n-1", author: "Store Manager", date: "28 Oct 2026", text: "Minor dent noticed on side casing during return inspection." },
+      { id: "n-2", author: "Bosch Workshop", date: "21 Oct 2026", text: "Dent fixed and motor vacuum pull calibrated to 15 microns." },
+      { id: "n-3", author: "Store Manager", date: "10 Oct 2026", text: "Initial inspection: oil reservoir topped up and tested OK." },
+    ],
     journey: [
       {
         id: "j-1",
-        eventType: "CREATED",
-        timestamp: "2024-02-15 10:00",
-        handledBy: "Admin",
-        conditionAfter: "Brand New",
-        notes: "Registered into fleet inventory with factory calibration certificate.",
+        eventType: "ASSIGNED",
+        title: "Assigned to Rahul Kumar",
+        subtitle: "Taken for VRF Installation",
+        badgeLabel: "Condition at Handover: Good",
+        badgeVariant: "good",
+        timestamp: "09 Nov 2026, 10:30 AM",
+        workerName: "Rahul Kumar",
+        projectName: "VRF Installation",
+        isCurrent: true,
       },
       {
         id: "j-2",
-        eventType: "ASSIGNED",
-        timestamp: "2026-11-07 08:30",
+        eventType: "RETURNED",
+        title: "Returned by Rahul Kumar",
+        subtitle: "Back to store",
+        badgeLabel: "Condition at Return: Rough",
+        badgeVariant: "rough",
+        timestamp: "28 Oct 2026, 04:20 PM",
         workerName: "Rahul Kumar",
-        projectName: "Central Mall VRF Installation",
-        handledBy: "Manager Alex",
-        conditionBefore: "Good",
-        expectedReturnDate: "2026-11-09 18:00",
-        notes: "Assigned for VRF line evacuation. Dispatched in Good condition.",
+        noteText: "Note: Minor dent on side.",
+        noteImage: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=80&auto=format&fit=crop&q=60",
+      },
+      {
+        id: "j-3",
+        eventType: "MAINTENANCE_SENT",
+        title: "Sent for Repair",
+        subtitle: "Marked by Store Manager",
+        badgeLabel: "Status: Under Repair",
+        badgeVariant: "repair",
+        timestamp: "21 Oct 2026, 02:15 PM",
+        noteText: "Dent fixed and tested.",
+      },
+      {
+        id: "j-4",
+        eventType: "MAINTENANCE_RETURNED",
+        title: "Returned to Store",
+        subtitle: "After repair",
+        badgeLabel: "Condition: Good",
+        badgeVariant: "good",
+        timestamp: "16 Oct 2026, 05:10 PM",
+      },
+      {
+        id: "j-5",
+        eventType: "ASSIGNED",
+        title: "Assigned to Amit Das",
+        subtitle: "For Commissioning",
+        badgeLabel: "Condition at Handover: Good",
+        badgeVariant: "good",
+        timestamp: "12 Oct 2026, 09:00 AM",
+        workerName: "Amit Das",
+        projectName: "Commissioning",
+      },
+      {
+        id: "j-6",
+        eventType: "CREATED",
+        title: "Added to Inventory",
+        subtitle: "Added by Store Manager",
+        badgeLabel: "Initial Condition: Good",
+        badgeVariant: "good",
+        timestamp: "10 Oct 2026, 11:00 AM",
       },
     ],
   },
@@ -133,23 +185,37 @@ export const INITIAL_TOOLS: ToolItem[] = [
     status: "Available",
     storageLocation: "Cabinet 2, Shelf B",
     assignedTo: null,
+    notesList: [
+      { id: "n-1", author: "Store Manager", date: "05 Nov 2026", text: "Returned in pristine condition with all port caps attached." },
+    ],
     journey: [
-      {
-        id: "j-10",
-        eventType: "CREATED",
-        timestamp: "2024-05-10 11:30",
-        handledBy: "Admin",
-        conditionAfter: "Brand New",
-      },
       {
         id: "j-11",
         eventType: "RETURNED",
-        timestamp: "2026-11-05 16:30",
-        workerName: "Amit Sharma",
-        projectName: "Metro Station AHU Maintenance",
-        handledBy: "Manager Alex",
-        conditionAfter: "Good",
-        notes: "Returned clean. Checked all 4 port valves and micron sensor.",
+        title: "Returned to Store",
+        subtitle: "Returned by Amit Sharma",
+        badgeLabel: "Condition: Good",
+        badgeVariant: "good",
+        timestamp: "05 Nov 2026, 04:30 PM",
+        isCurrent: true,
+      },
+      {
+        id: "j-12",
+        eventType: "ASSIGNED",
+        title: "Assigned to Amit Sharma",
+        subtitle: "For Metro Station AHU",
+        badgeLabel: "Condition at Handover: Good",
+        badgeVariant: "good",
+        timestamp: "02 Nov 2026, 08:30 AM",
+      },
+      {
+        id: "j-13",
+        eventType: "CREATED",
+        title: "Added to Inventory",
+        subtitle: "Added by Store Manager",
+        badgeLabel: "Initial Condition: Good",
+        badgeVariant: "good",
+        timestamp: "10 May 2024, 11:30 AM",
       },
     ],
   },
@@ -168,32 +234,39 @@ export const INITIAL_TOOLS: ToolItem[] = [
     status: "Needs Repair",
     storageLocation: "Repair Workshop, Bay 4",
     assignedTo: null,
+    notesList: [
+      { id: "n-1", author: "Vikram Singh", date: "01 Nov 2026", text: "Chuck overheating and trigger switch intermittent." },
+    ],
     journey: [
       {
-        id: "j-20",
-        eventType: "CREATED",
-        timestamp: "2023-08-19 12:00",
-        handledBy: "Admin",
-        conditionAfter: "Brand New",
-      },
-      {
         id: "j-21",
-        eventType: "RETURNED",
-        timestamp: "2026-11-01 10:15",
-        workerName: "Vikram Singh",
-        projectName: "Tech Park Block 4 Ducting",
-        handledBy: "Manager Alex",
-        conditionBefore: "Good",
-        conditionAfter: "Damaged",
-        isOverdue: true,
-        notes: "Trigger switch jammed and chuck overheating with sparks. Condition degraded from Good to Damaged under Vikram Singh.",
+        eventType: "MAINTENANCE_SENT",
+        title: "Sent for Repair",
+        subtitle: "Marked by Store Manager",
+        badgeLabel: "Status: Under Repair",
+        badgeVariant: "repair",
+        timestamp: "02 Nov 2026, 02:00 PM",
+        noteText: "Armature replacement order placed.",
+        isCurrent: true,
       },
       {
         id: "j-22",
-        eventType: "MAINTENANCE_SENT",
-        timestamp: "2026-11-02 14:00",
-        handledBy: "Admin",
-        notes: "Sent to Bosch Authorized Service Center for armature repair.",
+        eventType: "RETURNED",
+        title: "Returned by Vikram Singh",
+        subtitle: "Back to store",
+        badgeLabel: "Condition at Return: Damaged",
+        badgeVariant: "rough",
+        timestamp: "01 Nov 2026, 10:15 AM",
+        noteText: "Trigger switch jammed.",
+      },
+      {
+        id: "j-23",
+        eventType: "CREATED",
+        title: "Added to Inventory",
+        subtitle: "Added by Store Manager",
+        badgeLabel: "Initial Condition: Good",
+        badgeVariant: "good",
+        timestamp: "19 Aug 2023, 12:00 PM",
       },
     ],
   },
@@ -216,28 +289,30 @@ export const INITIAL_TOOLS: ToolItem[] = [
       workerName: "Mohammed Zafar",
       projectName: "Grand Hyatt HVAC Commissioning",
       projectShortName: "Commissioning",
-      assignedDate: "2026-11-04 08:00",
-      expectedReturnDate: "2026-11-06 18:00",
+      assignedDate: "04 Nov 2026, 08:00 AM",
+      expectedReturnDate: "06 Nov 2026, 06:00 PM",
       isOverdue: true,
       assignedCondition: "Fair",
     },
     journey: [
       {
-        id: "j-30",
-        eventType: "CREATED",
-        timestamp: "2024-01-20 09:30",
-        handledBy: "Admin",
-        conditionAfter: "Brand New",
-      },
-      {
         id: "j-31",
         eventType: "ASSIGNED",
-        timestamp: "2026-11-04 08:00",
-        workerName: "Mohammed Zafar",
-        projectName: "Grand Hyatt HVAC Commissioning",
-        handledBy: "Manager Alex",
-        conditionBefore: "Fair",
-        expectedReturnDate: "2026-11-06 18:00",
+        title: "Assigned to Mohammed Zafar",
+        subtitle: "Taken for Commissioning",
+        badgeLabel: "Condition at Handover: Fair",
+        badgeVariant: "rough",
+        timestamp: "04 Nov 2026, 08:00 AM",
+        isCurrent: true,
+      },
+      {
+        id: "j-32",
+        eventType: "CREATED",
+        title: "Added to Inventory",
+        subtitle: "Added by Store Manager",
+        badgeLabel: "Initial Condition: Brand New",
+        badgeVariant: "good",
+        timestamp: "20 Jan 2024, 09:30 AM",
       },
     ],
   },
@@ -260,9 +335,12 @@ export const INITIAL_TOOLS: ToolItem[] = [
       {
         id: "j-40",
         eventType: "CREATED",
-        timestamp: "2024-03-25 10:00",
-        handledBy: "Admin",
-        conditionAfter: "Brand New",
+        title: "Added to Inventory",
+        subtitle: "Added by Store Manager",
+        badgeLabel: "Initial Condition: Brand New",
+        badgeVariant: "good",
+        timestamp: "25 Mar 2024, 10:00 AM",
+        isCurrent: true,
       },
     ],
   },
@@ -283,20 +361,24 @@ export const INITIAL_TOOLS: ToolItem[] = [
     assignedTo: null,
     journey: [
       {
-        id: "j-50",
-        eventType: "CREATED",
-        timestamp: "2022-09-11 11:00",
-        handledBy: "Admin",
-        conditionAfter: "Brand New",
-      },
-      {
         id: "j-51",
         eventType: "SCRAPPED",
-        timestamp: "2026-10-15 15:00",
-        handledBy: "Admin",
-        conditionBefore: "Damaged",
-        conditionAfter: "Scrapped",
-        notes: "Cone stripped and frame cracked after 4 years of continuous field use. Beyond Economic Repair (BER).",
+        title: "Decommissioned / Scrapped",
+        subtitle: "Marked by Store Manager",
+        badgeLabel: "Status: Retired",
+        badgeVariant: "scrapped",
+        timestamp: "15 Oct 2026, 03:00 PM",
+        noteText: "Cone stripped and frame cracked after 4 years of use. BER.",
+        isCurrent: true,
+      },
+      {
+        id: "j-52",
+        eventType: "CREATED",
+        title: "Added to Inventory",
+        subtitle: "Added by Store Manager",
+        badgeLabel: "Initial Condition: Brand New",
+        badgeVariant: "good",
+        timestamp: "11 Sep 2022, 11:00 AM",
       },
     ],
   },

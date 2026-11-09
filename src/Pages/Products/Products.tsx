@@ -1,25 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import {
   Package,
-  Plus,
-  Search,
-  ChevronRight,
+  Layers,
   AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  FolderTree,
-  Eye,
-  Edit2
+  Ban,
+  ChevronDown,
+  ChevronRight,
+  Search,
+  Plus,
+  MoreHorizontal
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './Styles/Products.css';
-import { Can } from '../../Components/Auth/Can';
 import { INITIAL_PRODUCTS } from './productTypes';
 import type { ProductItem } from './productTypes';
 
 export const Products: React.FC = () => {
   const [products] = useState<ProductItem[]>(INITIAL_PRODUCTS);
-  const [expandedId, setExpandedId] = useState<string | null>("PRD-001"); // Auto-expand first item
+  const [expandedId, setExpandedId] = useState<string | null>("PRD-001"); // Auto-expand first row to match design
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("All Products");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
@@ -28,121 +26,142 @@ export const Products: React.FC = () => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
-  // Helper to calculate status of a single variant
-  const getVariantStatus = (stock: number, min: number) => {
-    if (stock <= 0) return { label: "Out of Stock", class: "outofstock", icon: XCircle };
-    if (stock <= min) return { label: "Low Stock", class: "lowstock", icon: AlertTriangle };
-    return { label: "In Stock", class: "instock", icon: CheckCircle2 };
+  // Helper for status badge
+  const renderStatusPill = (status: "In Stock" | "Low Stock" | "Out of Stock") => {
+    if (status === "In Stock") {
+      return (
+        <span className="status-pill-badge green">
+          <span className="dot" /> In Stock
+        </span>
+      );
+    }
+    if (status === "Low Stock") {
+      return (
+        <span className="status-pill-badge amber">
+          <span className="dot" /> Low Stock
+        </span>
+      );
+    }
+    return (
+      <span className="status-pill-badge rose">
+        <span className="dot" /> Out of Stock
+      </span>
+    );
   };
 
-  // Compute aggregate status for parent product
-  const getProductOverallStatus = (product: ProductItem) => {
-    const hasOut = product.variants.some((v) => v.stock <= 0);
-    const hasLow = product.variants.some((v) => v.stock > 0 && v.stock <= v.minThreshold);
-    if (hasOut) return { label: "Needs Restock", class: "outofstock" };
-    if (hasLow) return { label: "Low Stock Alert", class: "lowstock" };
-    return { label: "In Stock", class: "instock" };
+  // Helper for variant status
+  const getVariantStatus = (stock: number, min: number): "In Stock" | "Low Stock" | "Out of Stock" => {
+    if (stock <= 0) return "Out of Stock";
+    if (stock <= min) return "Low Stock";
+    return "In Stock";
   };
 
-  // Filtered list
+  // Filter products
   const filteredProducts = useMemo(() => {
-    return products.filter((prod) => {
-      // Category filter
-      if (selectedCategory !== "All Categories" && prod.categoryName !== selectedCategory) {
+    return products.filter((p) => {
+      if (selectedCategory !== "All Categories" && p.categoryName !== selectedCategory) {
         return false;
       }
 
-      // Tab status filter
-      if (activeTab === "Low Stock") {
-        const hasLow = prod.variants.some((v) => v.stock > 0 && v.stock <= v.minThreshold);
+      if (activeTab === "In Stock") {
+        const allIn = p.variants.every((v) => v.stock > v.minThreshold);
+        if (!allIn) return false;
+      } else if (activeTab === "Low Stock Alert") {
+        const hasLow = p.variants.some((v) => v.stock > 0 && v.stock <= v.minThreshold);
         if (!hasLow) return false;
-      } else if (activeTab === "Out of Stock") {
-        const hasOut = prod.variants.some((v) => v.stock <= 0);
-        if (!hasOut) return false;
-      } else if (activeTab === "In Stock") {
-        const allGood = prod.variants.every((v) => v.stock > v.minThreshold);
-        if (!allGood) return false;
       }
 
-      // Search filter
       if (search.trim()) {
         const q = search.toLowerCase();
-        const matchesName = prod.name.toLowerCase().includes(q);
-        const matchesBrand = prod.brand.toLowerCase().includes(q);
-        const matchesVariant = prod.variants.some(
-          (v) => v.sizeLabel.toLowerCase().includes(q) || v.sku.toLowerCase().includes(q)
-        );
-        if (!matchesName && !matchesBrand && !matchesVariant) return false;
+        const matchesName = p.name.toLowerCase().includes(q);
+        const matchesBrand = p.brand.toLowerCase().includes(q);
+        const matchesSizes = p.variants.some((v) => v.sizeLabel.toLowerCase().includes(q));
+        if (!matchesName && !matchesBrand && !matchesSizes) return false;
       }
 
       return true;
     });
   }, [products, selectedCategory, activeTab, search]);
 
-  // Overall counts
-  const totalVariants = products.reduce((acc, p) => acc + p.variants.length, 0);
-  const lowStockCount = products.reduce(
-    (acc, p) => acc + p.variants.filter((v) => v.stock > 0 && v.stock <= v.minThreshold).length,
-    0
-  );
-  const outOfStockCount = products.reduce(
-    (acc, p) => acc + p.variants.filter((v) => v.stock <= 0).length,
-    0
-  );
-
   return (
     <div className="products-page">
-      {/* HEADER */}
+      {/* TOP BREADCRUMB */}
+      <div className="products-breadcrumb">Inventory</div>
+
+      {/* HEADER SECTION */}
       <div className="products-header">
-        <div>
-          <h2>
-            <Package size={26} className="text-blue-600" />
-            HVAC Product & Material Catalog
-          </h2>
-          <p>Live inventory tracking with size-variant fractional decimal calculations</p>
+        <div className="products-header-text">
+          <h1>HVAC Product & Material Catalog</h1>
+          <p>View, track, and manage all HVAC products, materials, and their stock.</p>
         </div>
 
         <div className="header-action-group">
-          <Link to="/dashboard/categories" className="btn-secondary flex items-center gap-2">
-            <FolderTree size={16} />
+          <Link to="/dashboard/categories" className="btn-manage-categories">
+            <Layers size={16} />
             Manage Categories
           </Link>
-          <Can roles={["admin", "subadmin"]}>
-            <Link to="/dashboard/add-product" className="btn-primary flex items-center gap-2">
-              <Plus size={16} />
-              Add Product
-            </Link>
-          </Can>
+          <Link to="/dashboard/add-product" className="btn-add-product-dark">
+            <Plus size={16} />
+            Add Product
+          </Link>
         </div>
       </div>
 
-      {/* QUICK STATS */}
-      <div className="product-stats-row">
-        <div className="p-stat-card">
-          <p className="p-stat-label">Total Catalog Items</p>
-          <h3 className="p-stat-value">{products.length}</h3>
+      {/* 4 METRIC CARDS */}
+      <div className="product-stats-grid">
+        {/* Total Items */}
+        <div className="stat-metric-card">
+          <div className="stat-icon-box gray">
+            <Package size={24} />
+          </div>
+          <div className="stat-info">
+            <p className="stat-label">Total Items</p>
+            <h2 className="stat-count">24</h2>
+          </div>
         </div>
-        <div className="p-stat-card">
-          <p className="p-stat-label">Total Size Variants</p>
-          <h3 className="p-stat-value text-blue-600">{totalVariants}</h3>
+
+        {/* Size Variants */}
+        <div className="stat-metric-card">
+          <div className="stat-icon-box gray">
+            <Layers size={24} />
+          </div>
+          <div className="stat-info">
+            <p className="stat-label">Size Variants</p>
+            <h2 className="stat-count">68</h2>
+          </div>
         </div>
-        <div className="p-stat-card">
-          <p className="p-stat-label">Low Stock Alerts</p>
-          <h3 className="p-stat-value text-amber-600">{lowStockCount}</h3>
+
+        {/* Low Stock Alerts */}
+        <div className="stat-metric-card">
+          <div className="stat-icon-box amber">
+            <AlertTriangle size={24} />
+          </div>
+          <div className="stat-info">
+            <p className="stat-label">Low Stock Alerts</p>
+            <h2 className="stat-count">4</h2>
+          </div>
         </div>
-        <div className="p-stat-card">
-          <p className="p-stat-label">Out of Stock Sizes</p>
-          <h3 className="p-stat-value text-rose-600">{outOfStockCount}</h3>
+
+        {/* Out of Stock */}
+        <div className="stat-metric-card">
+          <div className="stat-icon-box rose">
+            <Ban size={24} />
+          </div>
+          <div className="stat-info">
+            <p className="stat-label">Out of Stock</p>
+            <h2 className="stat-count">2</h2>
+          </div>
         </div>
       </div>
 
-      {/* FILTER BAR */}
-      <div className="products-filter-bar">
-        <div className="filter-tabs">
-          {["All Products", "In Stock", "Low Stock", "Out of Stock"].map((tab) => (
+      {/* TOOLBAR CONTROLS */}
+      <div className="products-toolbar">
+        {/* Left Pills */}
+        <div className="toolbar-left-pills">
+          {["All Products", "In Stock", "Low Stock Alert"].map((tab) => (
             <button
               key={tab}
-              className={`filter-tab ${activeTab === tab ? "active" : ""}`}
+              className={`filter-pill-btn ${activeTab === tab ? "active" : ""}`}
               onClick={() => setActiveTab(tab)}
             >
               {tab}
@@ -150,23 +169,24 @@ export const Products: React.FC = () => {
           ))}
         </div>
 
-        <div className="filter-controls">
+        {/* Right Controls */}
+        <div className="toolbar-right-controls">
           <select
-            className="form-select text-xs py-2 px-3 w-48"
+            className="category-pill-select"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
           >
-            <option value="All Categories">All Categories</option>
+            <option value="All Categories">Category: All Categories</option>
             <option value="Ducting & Piping Materials">Ducting & Piping Materials</option>
             <option value="Consumables & Gases">Consumables & Gases</option>
             <option value="HVAC Equipment & Units">HVAC Equipment & Units</option>
           </select>
 
-          <div className="search-input-wrap">
-            <Search size={15} className="search-icon" />
+          <div className="search-pill-box">
+            <Search size={16} className="search-icon" />
             <input
               type="text"
-              placeholder="Search product, size, or SKU..."
+              placeholder="Search products..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -174,182 +194,117 @@ export const Products: React.FC = () => {
         </div>
       </div>
 
-      {/* PRODUCTS TABLE */}
-      <div className="products-table-card">
-        <table className="products-table">
-          <thead>
-            <tr>
-              <th style={{ width: "40px" }}></th>
-              <th>Product Details</th>
-              <th>Category / Subcategory</th>
-              <th>Base Unit</th>
-              <th>Sizes Available</th>
-              <th>Total Stock</th>
-              <th>Status</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProducts.map((product) => {
-              const isExpanded = expandedId === product.id;
-              const overallStatus = getProductOverallStatus(product);
-              const totalStock = product.variants.reduce((acc, v) => acc + v.stock, 0);
+      {/* DATA TABLE */}
+      <div className="products-table-container">
+        <div className="responsive-table-wrapper">
+          <table className="custom-products-table">
+            <thead>
+              <tr>
+                <th style={{ width: "40px" }}></th>
+                <th>Product Name</th>
+                <th>Brand</th>
+                <th>Category</th>
+                <th>Base Unit</th>
+                <th>Total Stock</th>
+                <th>Status</th>
+                <th style={{ width: "40px" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.map((p) => {
+                const isExpanded = expandedId === p.id;
+                const totalStock = p.variants.reduce((acc, v) => acc + v.stock, 0);
 
-              return (
-                <React.Fragment key={product.id}>
-                  <tr
-                    className="product-main-row cursor-pointer"
-                    onClick={() => toggleExpand(product.id)}
-                  >
-                    <td>
-                      <button
-                        className={`expand-chevron-btn ${isExpanded ? "rotated" : ""}`}
-                        title={isExpanded ? "Collapse Sizes" : "Expand Sizes"}
-                      >
-                        <ChevronRight size={14} />
-                      </button>
-                    </td>
-                    <td>
-                      <div className="product-name-block">
-                        <div>
-                          <div className="font-semibold text-gray-900">{product.name}</div>
-                          <div className="text-xs text-gray-400">Brand: {product.brand}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2.5 py-1 rounded-md">
-                        {product.subCategoryName || product.categoryName}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                        {product.baseUom}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-xs text-gray-600 font-medium">
-                        {product.hasVariants
-                          ? `${product.variants.length} Sizes`
-                          : "Single Model"}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="font-bold text-gray-800">
-                        {totalStock.toFixed(2)} {product.baseUom}
-                      </span>
-                      {product.packageRatio && (
-                        <div className="text-xs text-gray-400">
-                          (~{(totalStock / product.packageRatio).toFixed(1)} {product.packageUom})
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`status-pill ${overallStatus.class}`}>
-                        {overallStatus.label}
-                      </span>
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div className="cat-actions">
-                        <button className="action-btn" title="View Details">
-                          <Eye size={15} />
-                        </button>
-                        <Can roles={["admin", "subadmin"]}>
-                          <button className="action-btn" title="Edit Product">
-                            <Edit2 size={15} />
-                          </button>
-                        </Can>
-                      </div>
-                    </td>
-                  </tr>
-
-                  {/* EXPANDABLE SIZES DRAWER ROW */}
-                  {isExpanded && (
-                    <tr className="variants-expanded-row">
-                      <td colSpan={8}>
-                        <div className="variants-container">
-                          <div className="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-xs text-gray-600 font-semibold">
-                            <span>
-                              Stock Breakdown by Size / Dimension &bull; Base Unit:{" "}
-                              <strong>{product.baseUom}</strong>
-                            </span>
-                            <span className="text-blue-600">
-                              Decimals supported for site consumption (e.g. 3.50 {product.baseUom})
-                            </span>
-                          </div>
-
-                          <table className="variants-inner-table">
-                            <thead>
-                              <tr>
-                                <th>Size / Dimension</th>
-                                <th>SKU Code</th>
-                                <th>Current Stock</th>
-                                <th>Min Alert Threshold</th>
-                                <th>Unit Cost</th>
-                                <th>Status</th>
-                                <th className="text-right">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {product.variants.map((v) => {
-                                const vStatus = getVariantStatus(v.stock, v.minThreshold);
-                                const StatusIcon = vStatus.icon;
-
-                                return (
-                                  <tr key={v.id}>
-                                    <td className="font-bold text-gray-900">
-                                      {v.sizeLabel}
-                                    </td>
-                                    <td className="font-mono text-xs text-gray-500">
-                                      {v.sku}
-                                    </td>
-                                    <td>
-                                      <span
-                                        className={`font-extrabold ${
-                                          v.stock <= 0
-                                            ? "text-rose-600"
-                                            : v.stock <= v.minThreshold
-                                            ? "text-amber-600"
-                                            : "text-emerald-700"
-                                        }`}
-                                      >
-                                        {v.stock.toFixed(2)} {product.baseUom}
-                                      </span>
-                                    </td>
-                                    <td className="text-gray-500 text-xs">
-                                      {v.minThreshold.toFixed(2)} {product.baseUom}
-                                    </td>
-                                    <td className="text-gray-700 font-medium">
-                                      ₹{v.unitCost.toLocaleString()}
-                                    </td>
-                                    <td>
-                                      <span className={`status-pill ${vStatus.class}`}>
-                                        <StatusIcon size={12} />
-                                        {vStatus.label}
-                                      </span>
-                                    </td>
-                                    <td className="text-right">
-                                      <Link
-                                        to="/dashboard/projects"
-                                        className="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1 rounded font-semibold transition"
-                                      >
-                                        Issue to Site &rarr;
-                                      </Link>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                return (
+                  <React.Fragment key={p.id}>
+                    {/* PRIMARY ROW */}
+                    <tr
+                      className={`main-product-row ${isExpanded ? "expanded" : ""}`}
+                      onClick={() => toggleExpand(p.id)}
+                    >
+                      <td>
+                        <span className="product-chevron-trigger">
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="product-title-text">{p.name}</div>
+                      </td>
+                      <td>
+                        <div className="product-brand-text">{p.brand}</div>
+                      </td>
+                      <td>
+                        <div className="product-cat-text">
+                          {p.subCategoryName || p.categoryName}
                         </div>
                       </td>
+                      <td>
+                        <div className="product-uom-text">{p.baseUom}</div>
+                      </td>
+                      <td>
+                        <div className="product-stock-primary">
+                          {totalStock.toFixed(2)} {p.baseUom}
+                        </div>
+                        {p.packageRatio && (
+                          <div className="product-stock-sub">
+                            (= {(totalStock / p.packageRatio).toFixed(1)} {p.packageUom})
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {renderStatusPill(
+                          p.variants.some((v) => v.stock <= 0)
+                            ? "Out of Stock"
+                            : p.variants.some((v) => v.stock <= v.minThreshold)
+                            ? "Low Stock"
+                            : "In Stock"
+                        )}
+                      </td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <button className="row-action-more-btn" title="More options">
+                          <MoreHorizontal size={18} />
+                        </button>
+                      </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+
+                    {/* NESTED EXPANDED SIZES DRAWER */}
+                    {isExpanded && p.variants.length > 0 && (
+                      <tr>
+                        <td colSpan={8} className="nested-sizes-drawer-cell">
+                          <div className="nested-sizes-card">
+                            <table className="nested-sizes-table">
+                              <thead>
+                                <tr>
+                                  <th>Size (Diameter)</th>
+                                  <th>Stock</th>
+                                  <th>Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {p.variants.map((v) => {
+                                  const status = getVariantStatus(v.stock, v.minThreshold);
+                                  return (
+                                    <tr key={v.id}>
+                                      <td className="size-label-bold">{v.sizeLabel}</td>
+                                      <td className="size-stock-text">
+                                        {v.stock.toFixed(2)} {p.baseUom}
+                                      </td>
+                                      <td>{renderStatusPill(status)}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

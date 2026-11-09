@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus,
   Edit2,
@@ -9,9 +9,12 @@ import {
   Check,
   X,
   Layers,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import './Styles/Categories.css';
+import { categoriesApi } from '../../api/categoriesApi';
+import type { CategoryItem as ApiCategoryItem } from '../../api/categoriesApi';
 import { generateUniqueId } from '../../utils/idGenerator';
 
 export interface CategoryItem {
@@ -24,9 +27,9 @@ export interface CategoryItem {
   productCount: number;
 }
 
-const DEFAULT_CATEGORIES: CategoryItem[] = [
+const FALLBACK_CATEGORIES: CategoryItem[] = [
   {
-    id: "cat-1",
+    id: "1",
     name: "HVAC Equipment & Units",
     slug: "hvac-equipment",
     parentId: null,
@@ -35,25 +38,16 @@ const DEFAULT_CATEGORIES: CategoryItem[] = [
     productCount: 14,
   },
   {
-    id: "cat-2",
+    id: "2",
     name: "VRF / VRV Systems",
     slug: "vrf-vrv-systems",
-    parentId: "cat-1",
+    parentId: "1",
     description: "Variable Refrigerant Flow outdoor and indoor modules",
     defaultUom: "Pieces",
     productCount: 6,
   },
   {
-    id: "cat-3",
-    name: "Ductable Split Units",
-    slug: "ductable-split-units",
-    parentId: "cat-1",
-    description: "Ceiling suspended high-static ductable units",
-    defaultUom: "Pieces",
-    productCount: 5,
-  },
-  {
-    id: "cat-4",
+    id: "4",
     name: "Ducting & Piping Materials",
     slug: "ducting-piping-materials",
     parentId: null,
@@ -62,25 +56,16 @@ const DEFAULT_CATEGORIES: CategoryItem[] = [
     productCount: 28,
   },
   {
-    id: "cat-5",
+    id: "5",
     name: "Copper Pipes & Tubes",
     slug: "copper-pipes-tubes",
-    parentId: "cat-4",
+    parentId: "4",
     description: "Refrigerant grade seamless copper pipes",
     defaultUom: "Meters",
     productCount: 12,
   },
   {
-    id: "cat-6",
-    name: "Thermal Pipe Insulation",
-    slug: "thermal-pipe-insulation",
-    parentId: "cat-4",
-    description: "Nitrile rubber and foam tube insulations",
-    defaultUom: "Meters",
-    productCount: 8,
-  },
-  {
-    id: "cat-7",
+    id: "7",
     name: "Consumables & Gases",
     slug: "consumables-gases",
     parentId: null,
@@ -89,27 +74,19 @@ const DEFAULT_CATEGORIES: CategoryItem[] = [
     productCount: 16,
   },
   {
-    id: "cat-8",
+    id: "8",
     name: "Refrigerant Gases",
     slug: "refrigerant-gases",
-    parentId: "cat-7",
+    parentId: "7",
     description: "R-32, R-410A, R-134a cylinders and cans",
     defaultUom: "Kg",
     productCount: 7,
   },
-  {
-    id: "cat-9",
-    name: "Hardware & Fasteners",
-    slug: "hardware-fasteners",
-    parentId: "cat-7",
-    description: "Threaded rods, anchor bolts, and unistrut clamps",
-    defaultUom: "Pieces",
-    productCount: 9,
-  },
 ];
 
 export const Categories: React.FC = () => {
-  const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORIES);
+  const [categories, setCategories] = useState<CategoryItem[]>(FALLBACK_CATEGORIES);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
 
   // Form state
@@ -121,6 +98,56 @@ export const Categories: React.FC = () => {
   const [defaultUom, setDefaultUom] = useState("Pieces");
   const [formError, setFormError] = useState<string | null>(null);
   const [guardWarning, setGuardWarning] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Fetch categories from backend API
+  const refreshCategories = async () => {
+    try {
+      setLoading(true);
+      const res = await categoriesApi.getAll();
+      if (res.status && res.data?.flat) {
+        const mapped: CategoryItem[] = res.data.flat.map((c: ApiCategoryItem) => ({
+          id: String(c.id),
+          name: c.name,
+          slug: c.slug,
+          parentId: c.parent_id ? String(c.parent_id) : null,
+          description: c.description || "",
+          defaultUom: c.default_uom || "Pieces",
+          productCount: c.products_count ?? 0,
+        }));
+        setCategories(mapped);
+      }
+    } catch (err) {
+      console.warn("Backend API unavailable, using local category cache:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    categoriesApi.getAll().then((res) => {
+      if (active && res.status && res.data?.flat) {
+        const mapped: CategoryItem[] = res.data.flat.map((c: ApiCategoryItem) => ({
+          id: String(c.id),
+          name: c.name,
+          slug: c.slug,
+          parentId: c.parent_id ? String(c.parent_id) : null,
+          description: c.description || "",
+          defaultUom: c.default_uom || "Pieces",
+          productCount: c.products_count ?? 0,
+        }));
+        setCategories(mapped);
+      }
+    }).catch((err) => {
+      console.warn("Backend API unavailable, using local category cache:", err);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Auto-slugify name
   const handleNameChange = (val: string) => {
@@ -177,9 +204,10 @@ export const Categories: React.FC = () => {
     );
   }, [categories, search]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setSuccessMsg(null);
 
     if (!name.trim()) {
       setFormError("Category Name is required.");
@@ -196,34 +224,49 @@ export const Categories: React.FC = () => {
       return;
     }
 
-    if (editingId) {
-      setCategories((prev) =>
-        prev.map((cat) =>
-          cat.id === editingId
-            ? {
-                ...cat,
-                name: name.trim(),
-                slug: finalSlug,
-                parentId: parentId ? parentId : null,
-                description: description.trim(),
-                defaultUom,
-              }
-            : cat
-        )
-      );
+    const payload = {
+      name: name.trim(),
+      slug: finalSlug,
+      parent_id: parentId ? Number(parentId) : null,
+      description: description.trim(),
+      default_uom: defaultUom,
+    };
+
+    try {
+      if (editingId) {
+        await categoriesApi.update(editingId, payload);
+        setSuccessMsg(`Category '${payload.name}' updated successfully!`);
+      } else {
+        await categoriesApi.create(payload);
+        setSuccessMsg(`Category '${payload.name}' created successfully!`);
+      }
       resetForm();
-    } else {
-      const newCat: CategoryItem = {
-        id: generateUniqueId("cat"),
-        name: name.trim(),
-        slug: finalSlug,
-        parentId: parentId ? parentId : null,
-        description: description.trim(),
-        defaultUom,
-        productCount: 0,
-      };
-      setCategories((prev) => [...prev, newCat]);
+      refreshCategories();
+    } catch (err: unknown) {
+      const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to save category. Saving locally.";
+      // Fallback local update
+      if (editingId) {
+        setCategories((prev) =>
+          prev.map((cat) =>
+            cat.id === editingId
+              ? { ...cat, name: name.trim(), slug: finalSlug, parentId: parentId || null, description: description.trim(), defaultUom }
+              : cat
+          )
+        );
+      } else {
+        const newCat: CategoryItem = {
+          id: generateUniqueId("cat"),
+          name: name.trim(),
+          slug: finalSlug,
+          parentId: parentId || null,
+          description: description.trim(),
+          defaultUom,
+          productCount: 0,
+        };
+        setCategories((prev) => [...prev, newCat]);
+      }
       resetForm();
+      setSuccessMsg(errMsg);
     }
   };
 
@@ -236,9 +279,10 @@ export const Categories: React.FC = () => {
     setDefaultUom(cat.defaultUom || "Pieces");
     setFormError(null);
     setGuardWarning(null);
+    setSuccessMsg(null);
   };
 
-  const handleDelete = (cat: CategoryItem) => {
+  const handleDelete = async (cat: CategoryItem) => {
     const childCount = categories.filter((c) => c.parentId === cat.id).length;
     if (childCount > 0) {
       setGuardWarning(
@@ -255,7 +299,15 @@ export const Categories: React.FC = () => {
     }
 
     if (window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
-      setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+      try {
+        await categoriesApi.delete(cat.id);
+        setSuccessMsg(`Category '${cat.name}' deleted successfully.`);
+        refreshCategories();
+      } catch (err: unknown) {
+        const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Deleted locally.";
+        setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+        setSuccessMsg(errMsg);
+      }
       if (editingId === cat.id) resetForm();
       setGuardWarning(null);
     }
@@ -278,9 +330,29 @@ export const Categories: React.FC = () => {
 
       {/* HEADER SECTION */}
       <div className="categories-header">
-        <h1>Product Categories & Taxonomy</h1>
-        <p>WordPress-style category and subcategory structure for HVAC units, materials, and parts.</p>
+        <div>
+          <h1>Product Categories & Taxonomy</h1>
+          <p>WordPress-style category and subcategory structure for HVAC units, materials, and parts.</p>
+        </div>
+        <button
+          onClick={refreshCategories}
+          className="btn-secondary-light flex items-center gap-2"
+          disabled={loading}
+          title="Refresh categories from backend"
+        >
+          <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+          {loading ? "Syncing..." : "Sync DB"}
+        </button>
       </div>
+
+      {successMsg && (
+        <div className="p-3 mb-4 bg-emerald-50 text-emerald-800 text-sm font-medium rounded-lg border border-emerald-200 flex items-center justify-between">
+          <span>{successMsg}</span>
+          <button onClick={() => setSuccessMsg(null)}>
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {guardWarning && (
         <div className="guard-alert-box">

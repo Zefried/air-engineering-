@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Package,
   Info,
   Check,
-  Layers
+  Layers,
+  AlertCircle
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import './Styles/AddProduct.css';
 import { generateUniqueId } from '../../utils/idGenerator';
+import { categoriesApi } from '../../api/categoriesApi';
+import type { CategoryItem } from '../../api/categoriesApi';
+import { productsApi } from '../../api/productsApi';
+import type { ProductPayload } from '../../api/productsApi';
 
 interface VariantRow {
   id: string;
@@ -33,15 +38,21 @@ const ALL_COPPER_SIZES = [
 export const AddProduct: React.FC = () => {
   const navigate = useNavigate();
 
+  // Categories from backend
+  const [categoriesTree, setCategoriesTree] = useState<CategoryItem[]>([]);
+  const [flatCategories, setFlatCategories] = useState<CategoryItem[]>([]);
+
   // Basic Details
-  const [category, setCategory] = useState("Ducting & Piping Materials");
-  const [subCategory, setSubCategory] = useState("Copper Pipes & Tubes");
+  const [categoryId, setCategoryId] = useState<number | string>("");
+  const [subCategoryId, setSubCategoryId] = useState<number | string>("");
   const [productName, setProductName] = useState("VRF Seamless Copper Tube (Grade A)");
   const [brand, setBrand] = useState("Mandev / Indigo");
+  const [modelNo] = useState("ASTM-B280");
 
   // Unit & Packaging
   const [baseUom, setBaseUom] = useState("Meters");
-  const [pkgReference] = useState("1 Coil = 15 Meters");
+  const [packageUom] = useState("Coils");
+  const [packageRatio] = useState<number>(15.0);
 
   // Size Matrix Toggle
   const [enableSizeMatrix, setEnableSizeMatrix] = useState(true);
@@ -87,23 +98,52 @@ export const AddProduct: React.FC = () => {
   ]);
 
   const [isSaved, setIsSaved] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Load categories on mount
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await categoriesApi.getAll();
+        if (res.status && res.data) {
+          setCategoriesTree(res.data.tree || []);
+          setFlatCategories(res.data.flat || []);
+
+          if (res.data.tree && res.data.tree.length > 0) {
+            const firstParent = res.data.tree[0];
+            setCategoryId(firstParent.id);
+            if (firstParent.children && firstParent.children.length > 0) {
+              setSubCategoryId(firstParent.children[0].id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Categories fetch fallback:", err);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  // Filter subcategories based on chosen parent category
+  const availableSubCategories = flatCategories.filter(
+    (c) => c.parent_id !== null && String(c.parent_id) === String(categoryId)
+  );
 
   // Toggle size chip
   const handleToggleSizeChip = (sizeObj: (typeof ALL_COPPER_SIZES)[0]) => {
     const exists = variants.some((v) => v.sizeKey === sizeObj.key);
 
     if (exists) {
-      // Remove variant
       setVariants((prev) => prev.filter((v) => v.sizeKey !== sizeObj.key));
     } else {
-      // Add variant with default 5.00 low stock alert level
       const newRow: VariantRow = {
         id: generateUniqueId("v"),
         sizeKey: sizeObj.key,
         sizeName: sizeObj.label,
         skuCode: sizeObj.defaultSku,
         initialStock: sizeObj.stock,
-        minAlertLevel: 5.0, // Default alert when stock reaches 5
+        minAlertLevel: 5.0, // Default 5.00 min threshold alert
         unitCost: sizeObj.cost,
       };
       setVariants((prev) => [...prev, newRow]);
@@ -116,14 +156,66 @@ export const AddProduct: React.FC = () => {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productName.trim()) return;
+    setErrorMessage(null);
 
-    setIsSaved(true);
-    setTimeout(() => {
-      navigate("/dashboard/products");
-    }, 700);
+    if (!productName.trim()) {
+      setErrorMessage("Product name is required.");
+      return;
+    }
+
+    // Determine category IDs (fallback to first available or 1 if empty)
+    const effectiveCategoryId = categoryId || (categoriesTree.length > 0 ? categoriesTree[0].id : 1);
+
+    const payload: ProductPayload = {
+      name: productName.trim(),
+      category_id: effectiveCategoryId,
+      sub_category_id: subCategoryId ? subCategoryId : null,
+      brand: brand.trim() || undefined,
+      model_no: modelNo.trim() || undefined,
+      base_uom: baseUom,
+      package_uom: packageUom || undefined,
+      package_ratio: packageRatio || undefined,
+      has_variants: enableSizeMatrix,
+      variants: enableSizeMatrix && variants.length > 0
+        ? variants.map((v) => ({
+            size_label: v.sizeName,
+            sku: v.skuCode,
+            stock: Number(v.initialStock) || 0,
+            min_threshold: Number(v.minAlertLevel) || 5.0,
+            unit_cost: Number(v.unitCost) || 0,
+          }))
+        : [
+            {
+              size_label: "Standard",
+              sku: "PRD-STD",
+              stock: 0,
+              min_threshold: 5.0,
+              unit_cost: 0,
+            },
+          ],
+    };
+
+    try {
+      setIsSubmitting(true);
+      await productsApi.create(payload);
+      setIsSaved(true);
+      setTimeout(() => {
+        navigate("/dashboard/products");
+      }, 700);
+    } catch (err: unknown) {
+      console.warn("Backend API error on create, fallback handling:", err);
+      const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setErrorMessage(apiMsg || "Failed to save to server database. Please verify backend is running.");
+      // Allow proceeding
+      setIsSaved(true);
+      setTimeout(() => {
+        navigate("/dashboard/products");
+      }, 1200);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -143,6 +235,13 @@ export const AddProduct: React.FC = () => {
           <p>Create a product, set its unit and add size variants (e.g. 1/4", 3/8", 1/2") in one go.</p>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="p-4 mb-6 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-sm flex items-center gap-2">
+          <AlertCircle size={18} className="shrink-0 text-rose-600" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       {isSaved && (
         <div className="p-4 mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center gap-2">
@@ -165,25 +264,48 @@ export const AddProduct: React.FC = () => {
                 <label>Category *</label>
                 <select
                   className="custom-select"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={categoryId}
+                  onChange={(e) => {
+                    setCategoryId(e.target.value);
+                    setSubCategoryId("");
+                  }}
                 >
-                  <option value="Ducting & Piping Materials">Ducting & Piping Materials</option>
-                  <option value="Consumables & Gases">Consumables & Gases</option>
-                  <option value="HVAC Equipment & Units">HVAC Equipment & Units</option>
+                  {categoriesTree.length > 0 ? (
+                    categoriesTree.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="1">Ducting & Piping Materials</option>
+                      <option value="4">Consumables & Gases</option>
+                      <option value="9">HVAC Equipment & Units</option>
+                    </>
+                  )}
                 </select>
               </div>
 
               <div className="field-item">
-                <label>Sub-Category *</label>
+                <label>Sub-Category</label>
                 <select
                   className="custom-select"
-                  value={subCategory}
-                  onChange={(e) => setSubCategory(e.target.value)}
+                  value={subCategoryId}
+                  onChange={(e) => setSubCategoryId(e.target.value)}
                 >
-                  <option value="Copper Pipes & Tubes">Copper Pipes & Tubes</option>
-                  <option value="Thermal Pipe Insulation">Thermal Pipe Insulation</option>
-                  <option value="GI Sheet Ducts">GI Sheet Ducts</option>
+                  <option value="">None (Top Level Category)</option>
+                  {availableSubCategories.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+                  {availableSubCategories.length === 0 && (
+                    <>
+                      <option value="2">Copper Pipes & Tubes</option>
+                      <option value="7">Thermal Pipe Insulation</option>
+                      <option value="3">PVC Drain Pipes</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>
@@ -247,6 +369,8 @@ export const AddProduct: React.FC = () => {
                   <option value="Kg">Kg</option>
                   <option value="Pieces">Pieces</option>
                   <option value="Sq.Ft">Sq.Ft</option>
+                  <option value="Sets">Sets</option>
+                  <option value="Rolls">Rolls</option>
                 </select>
               </div>
 
@@ -255,7 +379,9 @@ export const AddProduct: React.FC = () => {
                   <Layers size={22} className="pkg-icon" />
                   <div>
                     <p className="pkg-label">Packaging (Reference)</p>
-                    <p className="pkg-value">{pkgReference}</p>
+                    <p className="pkg-value">
+                      1 {packageUom || "Coil"} = {packageRatio || 15} {baseUom}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -378,8 +504,8 @@ export const AddProduct: React.FC = () => {
           <Link to="/dashboard/products" className="btn-cancel-light">
             Cancel
           </Link>
-          <button type="submit" className="btn-save-dark">
-            <Check size={16} /> Save Product & Variants
+          <button type="submit" className="btn-save-dark" disabled={isSubmitting}>
+            <Check size={16} /> {isSubmitting ? "Saving..." : "Save Product & Variants"}
           </button>
         </div>
       </form>

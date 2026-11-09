@@ -1,0 +1,207 @@
+/* Contracts.css */
+
+.add-btn {
+  background: var(--accent, #0d9488);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 650;
+  transition: background 0.2s ease;
+  text-decoration: none;
+  height: 38px;
+}
+.add-btn:hover { background: #0f766e; color: white; }
+
+.contracts-table-container {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius, 14px);
+  padding: 24px 28px;
+  box-shadow: var(--card-shadow, 0 2px 8px rgba(15, 23, 42, 0.04));
+}
+
+.filter-tabs { scrollbar-width: none; }
+.filter-tabs::-webkit-scrollbar { display: none; }
+.filter-tab {
+  padding: 6px 14px; border-radius: 999px; background: transparent;
+  border: 1px solid var(--border-color, #e2e8f0);
+  color: var(--text-secondary, #718096); font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: all 0.2s ease;
+}
+.filter-tab:hover { background: var(--page-bg, #f4f7fb); color: var(--text-primary, #172b4d); }
+.filter-tab.active { background: var(--text-primary, #172b4d); color: var(--card-bg, #ffffff); border-color: var(--text-primary, #172b4d); }
+
+.contracts-table th {
+  color: var(--text-secondary, #718096); font-size: 12.5px; text-transform: uppercase;
+  font-weight: 650; letter-spacing: 0.5px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+.contracts-table td { 
+  padding: 16px 8px; 
+  border-bottom: 1px solid var(--border-color, #e2e8f0); 
+  vertical-align: middle;
+}
+.contracts-table tr:last-child td { border-bottom: none; padding-bottom: 4px; }
+
+.action-btn-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 650;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent; /* override default borders */
+  cursor: pointer;
+  outline: none;
+}
+.action-btn-text:hover {
+  transform: translateY(-1px);
+}
+
+.contract-badge {
+  display: inline-flex; align-items: center; padding: 4px 11px;
+  border-radius: 999px; font-size: 10.5px; font-weight: 750;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.contract-badge.active { background: var(--accent-light, #ccfbf1); color: var(--accent, #0d9488); }
+.contract-badge.due-soon { background: var(--blue-light, #e0f2fe); color: #0284c7; }
+.contract-badge.overdue { background: var(--danger-light, #fee2e2); color: var(--danger, #dc2626); border: 1px solid var(--danger-border, #fecaca); }
+.contract-badge.expiring-soon { background: var(--warning-light, #fff7ed); color: var(--warning, #c2410c); border: 1px solid var(--warning-border, #fed7aa); }
+.contract-badge.expired { background: var(--page-bg, #f4f7fb); color: var(--text-secondary, #718096); border: 1px solid var(--border-color, #e2e8f0); }
+.dark .contract-badge.expired { background: var(--border-color); color: var(--text-secondary); border: none; }
+
+/* Modal CSS */
+.modal-backdrop {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px;
+}
+.service-modal {
+  background: var(--card-bg, #ffffff); 
+  width: 100%; 
+  max-width: 520px;
+  border-radius: 14px; 
+  padding: 32px; 
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15); 
+  max-height: 90vh; 
+  overflow-y: auto;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+
+/* Modal Inputs */
+.modal-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.modal-form-group label {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary, #172b4d);
+}
+.modal-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--page-bg, #f4f7fb);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  color: var(--text-primary, #172b4d);
+  font-size: 13.5px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.modal-input.has-icon {
+  padding-left: 38px;
+}
+.modal-input:focus {
+  outline: none;
+  background: var(--card-bg, #ffffff);
+  border-color: var(--accent, #0d9488);
+  box-shadow: 0 0 0 3px var(--accent-light, #ccfbf1);
+}
+.dark .modal-input select { color: var(--text-primary); }
+
+/* Context Box */
+.modal-context-box {
+  background: var(--page-bg, #f4f7fb);
+  border: 1px solid var(--border-color, #e2e8f0);
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+.modal-context-box h4 {
+  color: var(--text-primary, #172b4d);
+  font-size: 15px;
+  font-weight: 750;
+  margin-bottom: 4px;
+}
+.modal-context-box p {
+  color: var(--text-secondary, #718096);
+  font-size: 12.5px;
+}
+
+/* Modal Actions */
+.modal-actions {
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  padding-top: 24px;
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Modal Buttons */
+.btn-cancel, .btn-submit { 
+  padding: 9px 20px; 
+  border-radius: 8px; 
+  font-size: 13px; 
+  font-weight: 650; 
+  cursor: pointer; 
+  transition: all 0.2s ease; 
+}
+.btn-cancel { 
+  background: transparent; 
+  border: 1px solid var(--border-color, #e2e8f0); 
+  color: var(--text-primary, #172b4d); 
+}
+.btn-cancel:hover { background: var(--border-color, #e2e8f0); }
+.btn-submit { 
+  background: var(--accent, #0d9488); 
+  border: 1px solid var(--accent, #0d9488); 
+  color: #ffffff; 
+}
+.btn-submit:hover { 
+  background: #0f766e; 
+  border-color: #0f766e; 
+}
+
+/* Service Type Boxes */
+.service-type-box {
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px 10px; border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px; font-size: 13px; font-weight: 600;
+  color: var(--text-secondary, #718096); cursor: pointer; transition: all 0.2s;
+  text-align: center; background: var(--page-bg, #f4f7fb);
+}
+.service-type-box:hover { border-color: var(--border-hover, #b7dcd8); }
+.service-type-box.selected {
+  background: var(--accent-light, #ccfbf1); border-color: var(--accent, #0d9488); color: var(--accent, #0d9488);
+}
+.dark .service-type-box { background: rgba(30, 41, 59, 0.5); }
+.dark .service-type-box.selected { background: rgba(13, 148, 136, 0.2); }
+
+.search-bar { position: relative; margin-bottom: 16px; }
+.search-bar .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary, #718096); }
+.search-bar input {
+  background: var(--page-bg, #f4f7fb); border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px; color: var(--text-primary, #172b4d); font-size: 13.5px;
+  width: 280px; padding: 10px 14px 10px 38px; transition: all 0.2s ease;
+}
+.search-bar input:focus { outline: none; background: var(--card-bg, #ffffff); border-color: var(--accent, #0d9488); box-shadow: 0 0 0 3px var(--accent-light, #ccfbf1); }
+
+.dark .service-modal { border: 1px solid var(--border-color); }

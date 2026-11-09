@@ -45,7 +45,7 @@ export const Sidebar = ({
         </div>
 
         {sidebarOpen && (
-          <span className="brand-name">Restro Dashboard</span>
+          <span className="brand-name">AirOpps</span>
         )}
       </div>
 

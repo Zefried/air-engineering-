@@ -3,6 +3,7 @@ import "./Style/Navbar.css";
 import { useContext } from "react";
 import { AuthContext } from "../Context/AuthContextValue";
 import { useNavigate, useLocation } from "react-router-dom";
+import { getPageTitle } from "../config/navigation";
 
 type NavbarProps = {
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -27,18 +28,7 @@ export const Navbar = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const pageTitles: Record<string, string> = {
-    "/dashboard": "Dashboard",
-    "/dashboard/locations": "Location",
-    "/dashboard/department": "Home",
-    "/dashboard/add-agent": "Add Agent",
-    "/dashboard/agent-profile": "Agent Profile",
-    "/dashboard/total-agents": "All Agents",
-    "/dashboard/total-workers": "All Workers",
-    "/dashboard/total-transactions": "All Transactions",
-  };
-
-  const pageTitle = pageTitles[location.pathname] || "Dashboard";
+  const pageTitle = getPageTitle(location.pathname);
 
   return (
     <div

@@ -1,7 +1,7 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useMemo } from "react";
 import { Sidebar } from "../Components/Sidebar";
 import { Navbar } from "../Components/Navbar";
-import { menus } from "../Components/Menu";
+import { getSidebarNavigation } from "../config/navigation";
 import { Outlet } from "react-router-dom";
 import { AuthContext } from "../Context/AuthContextValue";
 import "../Components/Style/Dashboard.css";
@@ -14,15 +14,11 @@ export const DashboardLayout = () => {
   const [showNotif, setShowNotif] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
 
-  if (!auth) return null;
+  const user = auth?.user;
+  const isLoading = auth?.isLoading;
+  const menu = useMemo(() => getSidebarNavigation(user?.role), [user?.role]);
 
-  const { user, isLoading } = auth;
-
-  if (isLoading) return null;
-
-  if (!user?.role) return null;
-
-  const menu = menus[user.role];
+  if (!auth || isLoading || !user?.role) return null;
 
   return (
     <div className={dark ? "dark" : ""}>

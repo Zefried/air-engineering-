@@ -1,0 +1,207 @@
+/* Projects.css */
+.add-btn {
+  background: var(--accent, #0d9488);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 650;
+  transition: background 0.2s ease;
+  text-decoration: none;
+  height: 38px;
+}
+
+.add-btn:hover {
+  background: #0f766e;
+  color: white;
+}
+
+.projects-stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.proj-stat-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius, 14px);
+  padding: 18px 24px;
+  min-width: 170px;
+  box-shadow: var(--card-shadow, 0 2px 8px rgba(15, 23, 42, 0.04));
+  transition: border-color 0.2s ease;
+}
+
+.proj-stat-card:hover {
+  border-color: var(--border-hover, #b7dcd8);
+}
+
+.proj-stat-card .stat-label {
+  color: var(--text-secondary, #718096);
+  font-size: 13.5px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.proj-stat-card .stat-value {
+  color: var(--text-primary, #172b4d);
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+}
+
+.projects-table-container {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius, 14px);
+  padding: 24px 28px;
+  box-shadow: var(--card-shadow, 0 2px 8px rgba(15, 23, 42, 0.04));
+}
+
+.search-bar input {
+  background: var(--page-bg, #f4f7fb);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  color: var(--text-primary, #172b4d);
+  font-size: 13.5px;
+  width: 280px;
+  transition: all 0.2s ease;
+}
+
+.search-bar input::placeholder {
+  color: var(--text-secondary, #718096);
+}
+
+.search-bar input:focus {
+  outline: none;
+  background: var(--card-bg, #ffffff);
+  border-color: var(--accent, #0d9488);
+  box-shadow: 0 0 0 3px var(--accent-light, #ccfbf1);
+}
+
+.projects-table {
+  width: 100%;
+}
+
+.projects-table th {
+  color: var(--text-secondary, #718096);
+  font-size: 12.5px;
+  text-transform: uppercase;
+  font-weight: 650;
+  letter-spacing: 0.5px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.projects-table td {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  vertical-align: middle;
+}
+
+.projects-table tr:last-child td {
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+
+.proj-info h4 {
+  color: var(--text-primary, #172b4d);
+  font-size: 14.5px;
+  margin-bottom: 3px;
+}
+
+.manager-avatar {
+  background: var(--accent-light, #ccfbf1);
+  color: var(--accent, #0d9488);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.status-badge.assigned {
+  background: var(--accent-light, #ccfbf1);
+  color: var(--accent, #0d9488);
+}
+
+.status-badge.unassigned {
+  background: var(--warning-light, #fff7ed);
+  color: var(--warning, #c2410c);
+  border: 1px solid var(--warning-border, #fed7aa);
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary, #718096);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background: var(--page-bg, #f4f7fb);
+  border-color: var(--border-hover, #b7dcd8);
+  color: var(--text-primary, #172b4d);
+}
+
+.action-btn.delete:hover {
+  background: var(--danger-light, #fee2e2);
+  color: var(--danger, #dc2626);
+  border-color: var(--danger-border, #fecaca);
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+@media (max-width: 640px) {
+  .projects-table-container {
+    padding: 16px;
+  }
+  .search-bar input {
+    width: 100%;
+  }
+}
+
+.search-bar {
+  position: relative;
+}
+
+.search-bar .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary, #718096);
+}
+
+.search-bar input {
+  background: var(--page-bg, #f4f7fb);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  color: var(--text-primary, #172b4d);
+  font-size: 13.5px;
+  width: 280px;
+  padding: 10px 14px 10px 38px;
+  transition: all 0.2s ease;
+}
+
+.search-bar input:focus {
+  outline: none;
+  background: var(--card-bg, #ffffff);
+  border-color: var(--accent, #0d9488);
+  box-shadow: 0 0 0 3px var(--accent-light, #ccfbf1);
+}

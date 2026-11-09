@@ -1,0 +1,36 @@
+/* AddContract.css */
+.add-contract-wrapper { max-width: 800px; }
+.add-contract-card {
+  background: var(--card-bg, #ffffff); border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius, 14px); box-shadow: var(--card-shadow, 0 2px 8px rgba(15, 23, 42, 0.04));
+  padding: 24px 28px;
+}
+.add-contract-card h3 {
+  color: var(--text-primary, #172b4d); font-size: 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0); padding-bottom: 12px; margin-bottom: 24px;
+}
+.contract-form { display: flex; flex-direction: column; gap: 20px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 13px; font-weight: 650; color: var(--text-primary, #172b4d); }
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%; padding: 10px 14px; background: var(--page-bg, #f4f7fb);
+  border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px;
+  color: var(--text-primary, #172b4d); font-family: inherit; font-size: 13.5px;
+  transition: all 0.2s ease;
+}
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+  outline: none; background: var(--card-bg, #ffffff); border-color: var(--accent, #0d9488);
+  box-shadow: 0 0 0 3px var(--accent-light, #ccfbf1);
+}
+.dark .form-group select { color: var(--text-primary); }
+.form-actions {
+  border-top: 1px solid var(--border-color, #e2e8f0); padding-top: 20px; margin-top: 8px;
+  display: flex; justify-content: flex-end; gap: 12px;
+}
+.btn-cancel, .btn-submit { padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 650; cursor: pointer; transition: all 0.2s ease; }
+.btn-cancel { background: transparent; border: 1px solid var(--border-color, #e2e8f0); color: var(--text-primary, #172b4d); }
+.btn-cancel:hover { background: var(--border-color, #e2e8f0); }
+.btn-submit { background: var(--accent, #0d9488); border: 1px solid var(--accent, #0d9488); color: #ffffff; }
+.btn-submit:hover { background: #0f766e; border-color: #0f766e; }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }

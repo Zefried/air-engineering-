@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, BellRing, RefreshCw, Check } from 'lucide-react';
+import { X, BellRing, RefreshCw, Check, Calendar, DollarSign, FileText, Briefcase } from 'lucide-react';
 import { paymentRemindersApi } from '../../../api/paymentRemindersApi';
 import { projectsApi, type ProjectItem } from '../../../api/projectsApi';
 
@@ -21,7 +21,6 @@ export const AddPaymentReminderModal: React.FC<AddPaymentReminderModalProps> = (
   const [reminderDatetime, setReminderDatetime] = useState<string>(() => {
     const d = new Date();
     d.setMinutes(d.getMinutes() + 30); // Default to 30 mins from now
-    // Format YYYY-MM-DDTHH:mm
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   });
   const [notes, setNotes] = useState<string>('');
@@ -31,14 +30,17 @@ export const AddPaymentReminderModal: React.FC<AddPaymentReminderModalProps> = (
   useEffect(() => {
     if (!isOpen) return;
     setErrorMsg(null);
-    projectsApi.getProjects().then((res) => {
-      if (res && res.data) {
-        setProjects(res.data);
-        if (res.data.length > 0 && !projectId) {
-          setProjectId(String(res.data[0].id));
+    projectsApi
+      .getProjects()
+      .then((res) => {
+        if (res && res.data) {
+          setProjects(res.data);
+          if (res.data.length > 0 && !projectId) {
+            setProjectId(String(res.data[0].id));
+          }
         }
-      }
-    }).catch(() => {});
+      })
+      .catch(() => {});
   }, [isOpen, projectId]);
 
   if (!isOpen) return null;
@@ -50,7 +52,7 @@ export const AddPaymentReminderModal: React.FC<AddPaymentReminderModalProps> = (
       return;
     }
     if (!title.trim()) {
-      setErrorMsg('Please enter a reminder title.');
+      setErrorMsg('Please enter a milestone / reminder title.');
       return;
     }
     if (!reminderDatetime) {
@@ -80,33 +82,52 @@ export const AddPaymentReminderModal: React.FC<AddPaymentReminderModalProps> = (
   };
 
   return (
-    <div className="attendance-modal-overlay" onClick={onClose}>
-      <div className="attendance-modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="attendance-modal-header">
+    <div className="payment-modal-overlay" onClick={onClose}>
+      <div className="payment-modal-card" onClick={(e) => e.stopPropagation()}>
+        {/* Mobile Swipe Bar */}
+        <div className="payment-drag-bar" />
+
+        <div className="payment-modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <BellRing size={18} color="#0f172a" />
-            <h3 className="attendance-modal-title">Schedule Payment Reminder</h3>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: '#f5f3ff',
+                color: '#7c3aed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <BellRing size={16} />
+            </div>
+            <h3 className="payment-modal-title">Schedule Payment Reminder</h3>
           </div>
-          <button onClick={onClose} className="worker-modal-close" type="button">
+          <button onClick={onClose} className="payment-modal-close" type="button" aria-label="Close modal">
             <X size={18} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="attendance-modal-body">
+          <div className="payment-modal-body">
             {errorMsg && (
-              <div className="attendance-alert attendance-alert-error" style={{ marginBottom: 0 }}>
+              <div className="payment-alert payment-alert-error" style={{ marginBottom: 0 }}>
                 {errorMsg}
               </div>
             )}
 
             {/* Project Selection */}
-            <div className="attendance-field-group">
-              <label className="attendance-field-label">Select Project:</label>
+            <div className="payment-field-group">
+              <label className="payment-field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Briefcase size={13} color="#7c3aed" />
+                <span>Select Project</span>
+              </label>
               <select
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
-                className="attendance-input"
+                className="payment-modal-input"
                 required
               >
                 {projects.map((p) => (
@@ -118,66 +139,75 @@ export const AddPaymentReminderModal: React.FC<AddPaymentReminderModalProps> = (
             </div>
 
             {/* Reminder Title */}
-            <div className="attendance-field-group">
-              <label className="attendance-field-label">Reminder Title / Milestone:</label>
+            <div className="payment-field-group">
+              <label className="payment-field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <FileText size={13} color="#7c3aed" />
+                <span>Milestone / Reminder Title</span>
+              </label>
               <input
                 type="text"
                 placeholder="e.g. Milestone 2 - Ducting Inspection Clearance"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="attendance-input"
+                className="payment-modal-input"
                 required
               />
             </div>
 
             {/* Optional Amount */}
-            <div className="attendance-field-group">
-              <label className="attendance-field-label">Pending Amount (₹ - Optional):</label>
+            <div className="payment-field-group">
+              <label className="payment-field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <DollarSign size={13} color="#7c3aed" />
+                <span>Pending Amount (₹ INR - Optional)</span>
+              </label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder="e.g. 150000 (Leave empty if unspecified)"
+                placeholder="e.g. 150000 (Optional)"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="attendance-input"
+                className="payment-modal-input"
               />
             </div>
 
             {/* Date & Time */}
-            <div className="attendance-field-group">
-              <label className="attendance-field-label">Reminder Date & Time:</label>
+            <div className="payment-field-group">
+              <label className="payment-field-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Calendar size={13} color="#7c3aed" />
+                <span>Reminder Date & Time</span>
+              </label>
               <input
                 type="datetime-local"
                 value={reminderDatetime}
                 onChange={(e) => setReminderDatetime(e.target.value)}
-                className="attendance-input"
+                className="payment-modal-input"
                 required
               />
               <span style={{ fontSize: 11, color: '#64748b' }}>
-                You will receive an in-app and browser desktop push notification at this exact time.
+                Instant in-app bell notification & browser desktop push alert dispatched at this time.
               </span>
             </div>
 
             {/* Notes / Instructions */}
-            <div className="attendance-field-group">
-              <label className="attendance-field-label">Notes / Contact Person (Optional):</label>
+            <div className="payment-field-group">
+              <label className="payment-field-label">Notes / Client Point of Contact (Optional):</label>
               <textarea
-                placeholder="e.g. Call Client PM Mr. Sharma. Cheque due on verification of riser ducts."
+                placeholder="e.g. Follow up with Client PM Mr. Sharma. Cheque due on verification of riser ducts."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="attendance-input"
+                className="payment-modal-input"
                 rows={3}
                 style={{ resize: 'vertical' }}
               />
             </div>
           </div>
 
-          <div className="attendance-modal-footer">
-            <button type="button" onClick={onClose} className="attendance-btn-outline" disabled={loading}>
+          <div className="payment-modal-footer">
+            <button type="button" onClick={onClose} className="payment-btn-outline" disabled={loading}>
               Cancel
             </button>
-            <button type="submit" className="attendance-btn-primary" disabled={loading}>
+            <button type="submit" className="payment-btn-primary" disabled={loading}>
               {loading ? (
                 <>
                   <RefreshCw size={14} className="animate-spin" />

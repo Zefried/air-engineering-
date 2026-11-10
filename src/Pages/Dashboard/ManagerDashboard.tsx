@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../../Context/AuthContextValue';
 import { projectsApi } from '../../api/projectsApi';
 import { toolsApi } from '../../api/toolsApi';
+import { ToolsReportSection } from '../Reports/ToolsReportPage';
 import './Styles/Manager.css';
 
 export const ManagerDashboard: React.FC = () => {
@@ -139,6 +140,11 @@ export const ManagerDashboard: React.FC = () => {
             <Users size={22} />
           </div>
         </div>
+      </div>
+
+      {/* Tools Fleet Live Report (Mobile-First) */}
+      <div style={{ marginBottom: 24 }}>
+        <ToolsReportSection showHeader={true} />
       </div>
 
       {/* Main Content Grid */}

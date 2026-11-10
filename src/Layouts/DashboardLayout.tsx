@@ -42,7 +42,7 @@ export const DashboardLayout = () => {
         />
 
         {/* Right */}
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
           <Navbar
             setSidebarOpen={setSidebarOpen}
             dark={dark}
@@ -54,7 +54,7 @@ export const DashboardLayout = () => {
           />
 
           {/* Main */}
-          <div className="flex-1 overflow-y-auto main-div">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 main-div">
             <Outlet />
           </div>
         </div>

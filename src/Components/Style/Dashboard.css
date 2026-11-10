@@ -39,7 +39,16 @@
 .main-div {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  overflow-x: hidden;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 6px;
+}
+
+@media (min-width: 640px) {
+  .main-div {
+    padding: 16px;
+  }
 }
 .sidebar-backdrop {
   position: fixed;

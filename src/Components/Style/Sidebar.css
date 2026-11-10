@@ -164,18 +164,26 @@
     top: 0;
     left: 0;
     z-index: 100;
-    width: 240px !important;
-    flex-basis: 240px;
+    width: 260px !important;
+    flex: 0 0 0px !important;
+    flex-basis: 0px !important;
+    min-width: 0 !important;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
-    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
   }
 
   .sidebar.open {
     transform: translateX(0);
+    width: 260px !important;
+    flex: 0 0 0px !important;
+    flex-basis: 0px !important;
   }
 
   .sidebar.closed {
     transform: translateX(-100%);
+    width: 260px !important;
+    flex: 0 0 0px !important;
+    flex-basis: 0px !important;
   }
 }

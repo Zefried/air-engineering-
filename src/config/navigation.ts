@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   CalendarDays,
   BellRing,
+  AlertTriangle,
 } from "lucide-react";
 import type { Role } from "../Context/AuthContextValue";
 
@@ -20,6 +21,9 @@ const AddProject = lazy(() => import("../Pages/Projects/AddProject"));
 const Activities = lazy(() => import("../Pages/Activities/ActivitiesPage"));
 const Attendance = lazy(() => import("../Pages/Attendance/AttendancePage"));
 const PaymentReminders = lazy(() => import("../Pages/PaymentReminders/PaymentRemindersPage"));
+const WorkforceReport = lazy(() => import("../Pages/Reports/WorkforceReportPage"));
+const SiteActivityReport = lazy(() => import("../Pages/Reports/SiteActivityReportPage"));
+const LowStockReport = lazy(() => import("../Pages/Reports/LowStockReportPage"));
 const Tools = lazy(() => import("../Pages/Tools/Tools"));
 const AddTool = lazy(() => import("../Pages/Tools/AddTool"));
 const Materials = lazy(() => import("../Pages/Materials/Materials"));
@@ -93,6 +97,30 @@ export const navigationConfig: NavigationItem[] = [
     path: "/dashboard/payment-reminders",
     element: React.createElement(PaymentReminders),
     allowedRoles: ["admin"],
+    showInSidebar: true,
+  },
+  {
+    name: "Workforce Operations",
+    icon: Users,
+    path: "/dashboard/workforce-report",
+    element: React.createElement(WorkforceReport),
+    allowedRoles: ["admin", "manager", "subadmin"],
+    showInSidebar: true,
+  },
+  {
+    name: "Site Activities Operations",
+    icon: CalendarCheck,
+    path: "/dashboard/activities-report",
+    element: React.createElement(SiteActivityReport),
+    allowedRoles: ["admin", "manager", "subadmin"],
+    showInSidebar: true,
+  },
+  {
+    name: "Low Stock Alerts",
+    icon: AlertTriangle,
+    path: "/dashboard/low-stock-report",
+    element: React.createElement(LowStockReport),
+    allowedRoles: ["admin", "manager", "subadmin"],
     showInSidebar: true,
   },
   {
